@@ -221,7 +221,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 	case BOP_READ:
 		if (buf == NULL) {
 			if ((len = vdsk_readv(bc, br->br_iov, br->br_iovcnt,
-				   br->br_offset, buf)) < 0)
+				   br->br_offset)) < 0)
 				err = errno;
 			else
 				br->br_resid -= len;
@@ -255,13 +255,12 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		}
 		break;
 	case BOP_WRITE:
-		/*
 		if (bc->bc_rdonly) {
 			err = EROFS;
 			break;
 		}
 		if (buf == NULL) {
-			if ((len = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
+			if ((len = vdsk_writev(bc, br->br_iov, br->br_iovcnt,
 				    br->br_offset)) < 0)
 				err = errno;
 			else
@@ -286,7 +285,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				}
 				boff += clen;
 			} while (boff < len);
-			if (pwrite(bc->bc_fd, buf, len, br->br_offset +
+			if (vdsk_write(bc, buf, len, br->br_offset +
 			    off) < 0) {
 				err = errno;
 				break;
@@ -294,8 +293,6 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			off += len;
 			br->br_resid -= len;
 		}
-		*/
-		err = vdsk_writev(bc, br->br_offset, br->br_iov, br->br_iovcnt);
 		break;
 	case BOP_FLUSH:
 		/*
