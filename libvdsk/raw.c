@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/raw.c 286996 2015-08-21 15:20:01
 
 #include "vdsk_int.h"
 
+static int vdsk_debug = 1;
+
 static int
 raw_probe(struct vdsk *vdsk __unused)
 {
@@ -62,18 +64,22 @@ raw_close(struct vdsk *vdsk __unused)
 }
 
 static int
-raw_read(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
+raw_readv(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
 {
 	ssize_t res;
+
+	DPRINTF(("===> raw_readv\n"));
 
 	res = preadv(vdsk->fd, iov, iovcnt, offset);
 	return ((res == -1) ? errno : 0);
 }
 
 static int
-raw_write(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
+raw_writev(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
 {
 	ssize_t res;
+
+	DPRINTF(("====> raw_writev\n"));
 
 	res = pwritev(vdsk->fd, iov, iovcnt, offset);
 	return ((res == -1) ? errno : 0);
@@ -92,6 +98,8 @@ raw_flush(struct vdsk *vdsk)
 {
 	int res;
 
+	DPRINTF(("==> raw_flush\n"));
+
 	res = fsync(vdsk->fd);
 	return ((res == -1) ? errno : 0);
 }
@@ -103,8 +111,8 @@ static struct vdsk_format raw_format = {
 	.probe = raw_probe,
 	.open = raw_open,
 	.close = raw_close,
-	.read = raw_read,
-	.write = raw_write,
+	.readv = raw_readv,
+	.writev = raw_writev,
 	.trim = raw_trim,
 	.flush = raw_flush,
 };
