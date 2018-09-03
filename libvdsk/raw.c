@@ -63,18 +63,30 @@ raw_close(struct vdsk *vdsk __unused)
 	return (0);
 }
 
-static int
-raw_readv(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
+static ssize_t
+raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset, uint8_t *buf)
 {
 	ssize_t res;
 
 	DPRINTF(("===> raw_readv\n"));
+	DPRINTF(("===> BUF: %su\n", buf));
 
 	res = preadv(vdsk->fd, iov, iovcnt, offset);
-	return ((res == -1) ? errno : 0);
+	return (res);
 }
 
-static int
+static ssize_t
+raw_read(struct vdsk *vdsk, void *buffer, size_t nbytes, off_t offset)
+{
+	ssize_t res;
+
+	DPRINTF(("===> raw_read\n"));
+
+	res = pread(vdsk->fd, buffer, nbytes, offset);
+	return (res);
+}
+
+static ssize_t
 raw_writev(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
 {
 	ssize_t res;
@@ -82,7 +94,18 @@ raw_writev(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
 	DPRINTF(("====> raw_writev\n"));
 
 	res = pwritev(vdsk->fd, iov, iovcnt, offset);
-	return ((res == -1) ? errno : 0);
+	return (res);
+}
+
+static ssize_t
+raw_write(struct vdsk *vdsk, void *buffer, size_t nbytes, off_t offset)
+{
+	ssize_t res;
+
+	DPRINTF(("===> raw_write\n"));
+
+	res = pwrite(vdsk->fd, buffer, nbytes, offset);
+	return (res);
 }
 
 static int
@@ -112,7 +135,9 @@ static struct vdsk_format raw_format = {
 	.open = raw_open,
 	.close = raw_close,
 	.readv = raw_readv,
+	.read = raw_read,
 	.writev = raw_writev,
+	.write = raw_write,
 	.trim = raw_trim,
 	.flush = raw_flush,
 };
