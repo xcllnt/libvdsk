@@ -64,12 +64,11 @@ raw_close(struct vdsk *vdsk __unused)
 }
 
 static ssize_t
-raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset, uint8_t *buf)
+raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	ssize_t res;
 
 	DPRINTF(("===> raw_readv\n"));
-	DPRINTF(("===> BUF: %su\n", buf));
 
 	res = preadv(vdsk->fd, iov, iovcnt, offset);
 	return (res);
@@ -87,7 +86,7 @@ raw_read(struct vdsk *vdsk, void *buffer, size_t nbytes, off_t offset)
 }
 
 static ssize_t
-raw_writev(struct vdsk *vdsk, off_t offset, const struct iovec *iov, int iovcnt)
+raw_writev(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	ssize_t res;
 

@@ -212,11 +212,11 @@ vdsk_sectorsize(vdskctx ctx)
 }
 
 ssize_t
-vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset, uint8_t *buf)
+vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
-	return (vdsk->fmt->readv(vdsk, iov, iovcnt, offset, buf));
+	return (vdsk->fmt->readv(vdsk, iov, iovcnt, offset));
 }
 
 ssize_t
@@ -227,14 +227,22 @@ vdsk_read(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
 	return (vdsk->fmt->read(vdsk, buffer, nbytes, offset));
 }
 
-int
-vdsk_writev(vdskctx ctx, off_t offset, const struct iovec *iov, int iovcnt)
+ssize_t
+vdsk_writev(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->writev(vdsk, offset, iov, iovcnt));
+	return (vdsk->fmt->writev(vdsk, iov, iovcnt, offset));
+}
+
+ssize_t
+vdsk_write(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->fmt->write(vdsk, buffer, nbytes, offset));
 }
 
 int
