@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/block_if.c 335104 2018-06-14 01:34:53Z a
 #include <signal.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <vdsk.h>
 
 #include <machine/atomic.h>
 
@@ -84,7 +85,7 @@ struct blockif_elem {
 	struct blockif_req  *be_req;
 	enum blockop	     be_op;
 	enum blockstat	     be_status;
-	pthread_t            be_tid;
+	pthread_t	     be_tid;
 	off_t		     be_block;
 };
 
@@ -105,7 +106,7 @@ struct blockif_ctxt {
 	pthread_cond_t		bc_cond;
 
 	/* Request elements and free/pending/busy queues */
-	TAILQ_HEAD(, blockif_elem) bc_freeq;       
+	TAILQ_HEAD(, blockif_elem) bc_freeq;
 	TAILQ_HEAD(, blockif_elem) bc_pendq;
 	TAILQ_HEAD(, blockif_elem) bc_busyq;
 	struct blockif_elem	bc_reqs[BLOCKIF_MAXREQ];
@@ -209,7 +210,6 @@ static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
 	struct blockif_req *br;
-	off_t arg[2];
 	ssize_t clen, len, off, boff, voff;
 	int i, err;
 
@@ -220,8 +220,8 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 	switch (be->be_op) {
 	case BOP_READ:
 		if (buf == NULL) {
-			if ((len = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
-				   br->br_offset)) < 0)
+			if ((len = vdsk_readv(bc, br->br_iov, br->br_iovcnt,
+				   br->br_offset, buf)) < 0)
 				err = errno;
 			else
 				br->br_resid -= len;
@@ -231,7 +231,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		off = voff = 0;
 		while (br->br_resid > 0) {
 			len = MIN(br->br_resid, MAXPHYS);
-			if (pread(bc->bc_fd, buf, len, br->br_offset +
+			if (vdsk_read(bc, buf, len, br->br_offset +
 			    off) < 0) {
 				err = errno;
 				break;
@@ -255,6 +255,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		}
 		break;
 	case BOP_WRITE:
+		/*
 		if (bc->bc_rdonly) {
 			err = EROFS;
 			break;
@@ -293,15 +294,21 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			off += len;
 			br->br_resid -= len;
 		}
+		*/
+		err = vdsk_writev(bc, br->br_offset, br->br_iov, br->br_iovcnt);
 		break;
 	case BOP_FLUSH:
+		/*
 		if (bc->bc_ischr) {
 			if (ioctl(bc->bc_fd, DIOCGFLUSH))
 				err = errno;
 		} else if (fsync(bc->bc_fd))
 			err = errno;
+		*/
+		err = vdsk_flush(bc);
 		break;
 	case BOP_DELETE:
+		/*
 		if (!bc->bc_candelete)
 			err = EOPNOTSUPP;
 		else if (bc->bc_rdonly)
@@ -315,6 +322,8 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				br->br_resid = 0;
 		} else
 			err = EOPNOTSUPP;
+		*/
+		err = vdsk_trim(bc, br->br_offset, br->br_resid);
 		break;
 	default:
 		err = EINVAL;
@@ -398,17 +407,20 @@ struct blockif_ctxt *
 blockif_open(const char *optstr, const char *ident)
 {
 	char tname[MAXCOMLEN + 1];
-	char name[MAXPATHLEN];
+	//char name[MAXPATHLEN];
 	char *nopt, *xopts, *cp;
 	struct blockif_ctxt *bc;
 	struct stat sbuf;
-	struct diocgattr_arg arg;
-	off_t size, psectsz, psectoff;
-	int extra, fd, i, sectsz;
+	//struct diocgattr_arg arg;
+	off_t psectsz, psectoff;
+	int extra, fd, i;
 	int nocache, sync, ro, candelete, geom, ssopt, pssopt;
+#if 0
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+	//cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+#endif
+
 #endif
 
 	pthread_once(&blockif_once, blockif_init);
@@ -450,23 +462,34 @@ blockif_open(const char *optstr, const char *ident)
 	if (sync)
 		extra |= O_SYNC;
 
+	/*
 	fd = open(nopt, (ro ? O_RDONLY : O_RDWR) | extra);
 	if (fd < 0 && !ro) {
-		/* Attempt a r/w fail with a r/o open */
+		// Attempt a r/w fail with a r/o open
 		fd = open(nopt, O_RDONLY | extra);
 		ro = 1;
 	}
+	*/
+	bc = vdsk_open(nopt, (ro ? O_RDONLY : O_RDWR) | extra, sizeof(*bc));
+	if (bc == NULL && !ro) {
+		/* Attempt a r/w fail with a r/o open */
+		bc = vdsk_open(nopt, O_RDONLY | extra, sizeof(*bc));
+		ro = 1;
+	}
 
+	/*
 	if (fd < 0) {
 		warn("Could not open backing file: %s", nopt);
 		goto err;
 	}
 
-        if (fstat(fd, &sbuf) < 0) {
+	if (fstat(fd, &sbuf) < 0) {
 		warn("Could not stat backing file %s", nopt);
 		goto err;
-        }
+	}
+	*/
 
+#if 0
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
 	    CAP_WRITE);
@@ -477,10 +500,13 @@ blockif_open(const char *optstr, const char *ident)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
-        /*
+#endif
+
+#if 0
+	/*
 	 * Deal with raw devices
 	 */
-        size = sbuf.st_size;
+	size = sbuf.st_size;
 	sectsz = DEV_BSIZE;
 	psectsz = psectoff = 0;
 	candelete = geom = 0;
@@ -538,19 +564,21 @@ blockif_open(const char *optstr, const char *ident)
 	}
 
 	bc = calloc(1, sizeof(struct blockif_ctxt));
+
+#endif
 	if (bc == NULL) {
 		perror("calloc");
 		goto err;
 	}
 
 	bc->bc_magic = BLOCKIF_SIG;
-	bc->bc_fd = fd;
+	//bc->bc_fd = fd;
 	bc->bc_ischr = S_ISCHR(sbuf.st_mode);
 	bc->bc_isgeom = geom;
 	bc->bc_candelete = candelete;
 	bc->bc_rdonly = ro;
-	bc->bc_size = size;
-	bc->bc_sectsz = sectsz;
+	//bc->bc_size = size;
+	//bc->bc_sectsz = sectsz;
 	bc->bc_psectsz = psectsz;
 	bc->bc_psectoff = psectoff;
 	pthread_mutex_init(&bc->bc_mtx, NULL);
@@ -708,7 +736,7 @@ blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 	pthread_mutex_unlock(&bc->bc_mtx);
 
 	/*
-	 * The processing thread has been interrupted.  Since it's not
+	 * The processing thread has been interrupted.	Since it's not
 	 * clear if the callback has been invoked yet, return EBUSY.
 	 */
 	return (EBUSY);
@@ -738,8 +766,11 @@ blockif_close(struct blockif_ctxt *bc)
 	 * Release resources
 	 */
 	bc->bc_magic = 0;
+	vdsk_close(bc);
+	/*
 	close(bc->bc_fd);
 	free(bc);
+	*/
 
 	return (0);
 }
@@ -758,7 +789,8 @@ blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s)
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
-	sectors = bc->bc_size / bc->bc_sectsz;
+	//sectors = bc->bc_size / bc->bc_sectsz;
+	sectors = vdsk_capacity(bc) / vdsk_sectorsize(bc);
 
 	/* Clamp the size to the largest possible with CHS */
 	if (sectors > 65535UL*16*255)
@@ -801,7 +833,8 @@ blockif_size(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (bc->bc_size);
+	//return (bc->bc_size);
+	return(vdsk_capacity(bc));
 }
 
 int
@@ -809,7 +842,8 @@ blockif_sectsz(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (bc->bc_sectsz);
+	//return (bc->bc_sectsz);
+	return(vdsk_sectorsize(bc));
 }
 
 void

@@ -71,7 +71,7 @@ SRCS=	\
 .PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-LIBADD=	vmmapi md pthread z util sbuf cam
+LIBADD=	vmmapi md pthread z util sbuf cam vdsk
 
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
