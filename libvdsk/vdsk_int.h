@@ -31,6 +31,9 @@
 
 #include <sys/linker_set.h>
 
+#define DPRINTF(params) if (vdsk_debug) printf params
+#define WPRINTF(params) printf params
+
 struct vdsk;
 
 /*
@@ -48,8 +51,8 @@ struct vdsk_format {
 	int	(*probe)(struct vdsk *);
 	int	(*open)(struct vdsk *);
 	int	(*close)(struct vdsk *);
-	int	(*read)(struct vdsk *, off_t, const struct iovec *, int);
-	int	(*write)(struct vdsk *, off_t, const struct iovec *, int);
+	int	(*readv)(struct vdsk *, off_t, const struct iovec *, int);
+	int	(*writev)(struct vdsk *, off_t, const struct iovec *, int);
 	int	(*trim)(struct vdsk *, off_t, ssize_t);
 	int	(*flush)(struct vdsk *);
 };
