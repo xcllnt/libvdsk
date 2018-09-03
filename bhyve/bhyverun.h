@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,17 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/bhyverun.h 279575 2015-03-04 02:47:13Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/bhyverun.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef	_FBSDRUN_H_
 #define	_FBSDRUN_H_
-
-#ifndef CTASSERT		/* Allow lint to override */
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
-#endif
 
 #define	VMEXIT_CONTINUE		(0)
 #define	VMEXIT_ABORT		(-1)

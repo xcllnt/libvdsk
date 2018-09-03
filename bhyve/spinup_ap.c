@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/spinup_ap.c 263432 2014-03-20 18:15:37Z neel $
+ * $FreeBSD: head/usr.sbin/bhyve/spinup_ap.c 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/spinup_ap.c 263432 2014-03-20 18:15:37Z neel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/spinup_ap.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/param.h>
 #include <sys/types.h>

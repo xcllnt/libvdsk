@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/pci_hostbridge.c 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/pci_hostbridge.c 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/pci_hostbridge.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_hostbridge.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include "pci_emul.h"
 

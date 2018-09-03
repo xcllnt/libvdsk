@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,17 +25,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/pci_emul.c 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/pci_emul.c 338210 2018-08-22 20:23:08Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/pci_emul.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_emul.c 338210 2018-08-22 20:23:08Z araujo $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -235,6 +237,17 @@ done:
 	return (error);
 }
 
+void
+pci_print_supported_devices()
+{
+	struct pci_devemu **pdpp, *pdp;
+
+	SET_FOREACH(pdpp, pci_devemu_set) {
+		pdp = *pdpp;
+		printf("%s\n", pdp->pe_emu);
+	}
+}
+
 static int
 pci_valid_pba_offset(struct pci_devinst *pi, uint64_t offset)
 {
@@ -295,7 +308,7 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 
 	/*
 	 * The PCI standard only allows 4 and 8 byte accesses to the MSI-X
-	 * table but we also allow 1 byte access to accomodate reads from
+	 * table but we also allow 1 byte access to accommodate reads from
 	 * ddb.
 	 */
 	if (size != 1 && size != 4 && size != 8)
@@ -760,8 +773,6 @@ pci_populate_msicap(struct msicap *msicap, int msgnum, int nextptr)
 {
 	int mmc;
 
-	CTASSERT(sizeof(struct msicap) == 14);
-
 	/* Number of msi messages must be a power of 2 between 1 and 32 */
 	assert((msgnum & (msgnum - 1)) == 0 && msgnum >= 1 && msgnum <= 32);
 	mmc = ffs(msgnum) - 1;
@@ -786,7 +797,6 @@ static void
 pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
 		     uint32_t msix_tab_size)
 {
-	CTASSERT(sizeof(struct msixcap) == 12);
 
 	assert(msix_tab_size % 4096 == 0);
 
@@ -863,10 +873,9 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		 int bytes, uint32_t val)
 {
 	uint16_t msgctrl, rwmask;
-	int off, table_bar;
-	
+	int off;
+
 	off = offset - capoff;
-	table_bar = pi->pi_msix.table_bar;
 	/* Message Control Register */
 	if (off == 2 && bytes == 2) {
 		rwmask = PCIM_MSIXCTRL_MSIX_ENABLE | PCIM_MSIXCTRL_FUNCTION_MASK;
@@ -878,8 +887,8 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
 		pci_lintr_update(pi);
-	} 
-	
+	}
+
 	CFGWRITE(pi, offset, val, bytes);
 }
 
@@ -937,8 +946,6 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 {
 	int err;
 	struct pciecap pciecap;
-
-	CTASSERT(sizeof(struct pciecap) == 60);
 
 	if (type != PCIEM_TYPE_ROOT_PORT)
 		return (-1);
@@ -1340,11 +1347,11 @@ pci_bus_write_dsdt(int bus)
 		dsdt_line("Name (PPRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_pirq_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Name (APRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_apic_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Method (_PRT, 0, NotSerialized)");
 		dsdt_line("{");
 		dsdt_line("  If (PICM)");
@@ -1510,7 +1517,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * is not yet assigned.
 	 */
 	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq();
+		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
 	assert(ii->ii_ioapic_irq > 0);
 
 	/*
@@ -1518,7 +1525,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * not yet assigned.
 	 */
 	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi->pi_vmctx);
+		ii->ii_pirq_pin = pirq_alloc_pin(pi);
 	assert(ii->ii_pirq_pin > 0);
 
 	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
@@ -1730,7 +1737,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
-}	
+}
 
 static void
 pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
@@ -2035,7 +2042,7 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 */
 	}
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("diow: unknown bar idx %d\n", baridx);
 	}
 }
@@ -2055,6 +2062,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			return (0);
 		}
 	
+		value = 0;
 		if (size == 1) {
 			value = sc->ioregs[offset];
 		} else if (size == 2) {
@@ -2089,7 +2097,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	}
 
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("dior: unknown bar idx %d\n", baridx);
 		return (0);
 	}

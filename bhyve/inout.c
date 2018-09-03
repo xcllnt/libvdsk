@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/inout.c 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/inout.c 335104 2018-06-14 01:34:53Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/inout.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/inout.c 335104 2018-06-14 01:34:53Z araujo $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -66,21 +68,21 @@ static int
 default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
               uint32_t *eax, void *arg)
 {
-        if (in) {
-                switch (bytes) {
-                case 4:
-                        *eax = 0xffffffff;
-                        break;
-                case 2:
-                        *eax = 0xffff;
-                        break;
-                case 1:
-                        *eax = 0xff;
-                        break;
-                }
-        }
-        
-        return (0);
+	if (in) {
+		switch (bytes) {
+		case 4:
+			*eax = 0xffffffff;
+			break;
+		case 2:
+			*eax = 0xffff;
+			break;
+		case 1:
+			*eax = 0xff;
+			break;
+		}
+	}
+
+	return (0);
 }
 
 static void 

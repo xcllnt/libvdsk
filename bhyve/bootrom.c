@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
@@ -25,7 +27,7 @@
  */
 
 #include <sys/param.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/bootrom.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/bootrom.c 335025 2018-06-13 03:22:08Z araujo $");
 
 #include <sys/types.h>
 #include <sys/mman.h>

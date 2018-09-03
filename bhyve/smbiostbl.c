@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
@@ -25,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/smbiostbl.c 272007 2014-09-23 01:17:22Z grehan $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/smbiostbl.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/param.h>
 

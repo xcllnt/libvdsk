@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Chris Torek <torek @ torek net>
  * All rights reserved.
  *
@@ -25,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/virtio.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/virtio.c 335104 2018-06-14 01:34:53Z araujo $");
 
 #include <sys/param.h>
 #include <sys/uio.h>
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/virtio.c 286979 2015-08-21 05:02:2
  * front of virtio-based device softc" constraint, let's use
  * this to convert.
  */
-#define DEV_SOFTC(vs) ((void *)(vs))
+#define	DEV_SOFTC(vs) ((void *)(vs))
 
 /*
  * Link a virtio_softc to its constants, the device softc, and
