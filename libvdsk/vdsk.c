@@ -256,12 +256,12 @@ vdsk_trim(vdskctx ctx, off_t offset, ssize_t length)
 }
 
 int
-vdsk_flush(vdskctx ctx)
+vdsk_flush(vdskctx ctx, unsigned long diocg)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (0);
-	return (vdsk->fmt->flush(vdsk));
+	return (vdsk->fmt->flush(vdsk, diocg));
 }
 

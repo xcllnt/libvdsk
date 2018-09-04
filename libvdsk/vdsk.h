@@ -46,6 +46,6 @@ ssize_t	vdsk_read(vdskctx, void *, size_t, off_t);
 ssize_t	vdsk_writev(vdskctx, const struct iovec *, int, off_t);
 ssize_t	vdsk_write(vdskctx, void *, size_t, off_t);
 int	vdsk_trim(vdskctx, off_t, ssize_t);
-int	vdsk_flush(vdskctx);
+int	vdsk_flush(vdskctx, unsigned long);
 
 #endif /* __VDSK_H__ */

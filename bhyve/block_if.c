@@ -295,14 +295,10 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		}
 		break;
 	case BOP_FLUSH:
-		/*
-		if (bc->bc_ischr) {
-			if (ioctl(bc->bc_fd, DIOCGFLUSH))
-				err = errno;
-		} else if (fsync(bc->bc_fd))
-			err = errno;
-		*/
-		err = vdsk_flush(bc);
+		if (bc->bc_ischr)
+			err = vdsk_flush(bc, DIOCGFLUSH);
+		else
+			err = vdsk_flush(bc, 0);
 		break;
 	case BOP_DELETE:
 		/*

@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/raw.c 286996 2015-08-21 15:20:01Z marcel $");
 
+#include <sys/ioctl.h>
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -116,14 +117,24 @@ raw_trim(struct vdsk *vdsk __unused, off_t offset __unused,
 }
 
 static int
-raw_flush(struct vdsk *vdsk)
+raw_flush(struct vdsk *vdsk, unsigned long diocg)
 {
-	int res;
+	int res = 0;
 
 	DPRINTF(("==> raw_flush\n"));
+	DPRINTF(("==> diocg: %lu\n", diocg));
 
-	res = fsync(vdsk->fd);
-	return ((res == -1) ? errno : 0);
+	if (diocg != 0) {
+		if (ioctl(vdsk->fd, diocg))
+			res = errno;
+	} else if (fsync(vdsk->fd) == -1) {
+		res = errno;
+
+	}
+
+	DPRINTF(("==> return res: %d\n", res));
+
+	return (res);
 }
 
 static struct vdsk_format raw_format = {
