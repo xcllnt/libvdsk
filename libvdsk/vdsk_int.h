@@ -55,7 +55,7 @@ struct vdsk_format {
 	ssize_t	(*read)(struct vdsk *, void *, size_t, off_t);
 	ssize_t	(*writev)(struct vdsk *, const struct iovec *, int, off_t);
 	ssize_t	(*write)(struct vdsk *, void *, size_t, off_t);
-	int	(*trim)(struct vdsk *, off_t, ssize_t);
+	int	(*trim)(struct vdsk *, unsigned long, off_t arg[2]);
 	int	(*flush)(struct vdsk *, unsigned long);
 };
 

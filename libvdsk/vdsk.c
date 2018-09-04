@@ -246,13 +246,13 @@ vdsk_write(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
 }
 
 int
-vdsk_trim(vdskctx ctx, off_t offset, ssize_t length)
+vdsk_trim(vdskctx ctx, unsigned long diocg, off_t arg[2])
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->trim(vdsk, offset, length));
+	return (vdsk->fmt->trim(vdsk, diocg, arg));
 }
 
 int

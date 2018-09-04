@@ -109,11 +109,17 @@ raw_write(struct vdsk *vdsk, void *buffer, size_t nbytes, off_t offset)
 }
 
 static int
-raw_trim(struct vdsk *vdsk __unused, off_t offset __unused,
-    ssize_t length __unused)
+raw_trim(struct vdsk *vdsk, unsigned long diocg, off_t arg[2])
 {
+	int res = 0;
 
-	return (EOPNOTSUPP);
+	DPRINTF(("==> raw_flush\n"));
+	DPRINTF(("==> diocg: %lu\n", diocg));
+
+	if (ioctl(vdsk->fd, diocg, arg))
+		res = errno;
+
+	return (res);
 }
 
 static int

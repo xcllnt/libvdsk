@@ -210,6 +210,7 @@ static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
 	struct blockif_req *br;
+	off_t arg[2];
 	ssize_t clen, len, off, boff, voff;
 	int i, err;
 
@@ -301,7 +302,6 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			err = vdsk_flush(bc, 0);
 		break;
 	case BOP_DELETE:
-		/*
 		if (!bc->bc_candelete)
 			err = EOPNOTSUPP;
 		else if (bc->bc_rdonly)
@@ -309,14 +309,12 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		else if (bc->bc_ischr) {
 			arg[0] = br->br_offset;
 			arg[1] = br->br_resid;
-			if (ioctl(bc->bc_fd, DIOCGDELETE, arg))
+			if (vdsk_trim(bc, DIOCGDELETE, arg))
 				err = errno;
 			else
 				br->br_resid = 0;
 		} else
 			err = EOPNOTSUPP;
-		*/
-		err = vdsk_trim(bc, br->br_offset, br->br_resid);
 		break;
 	default:
 		err = EINVAL;
