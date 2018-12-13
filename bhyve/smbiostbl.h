@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/smbiostbl.h 262744 2014-03-04 17:12:06Z tychon $
+ * $FreeBSD: head/usr.sbin/bhyve/smbiostbl.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef _SMBIOSTBL_H_

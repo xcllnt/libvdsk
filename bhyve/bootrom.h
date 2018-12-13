@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/bootrom.h 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/bootrom.h 335104 2018-06-14 01:34:53Z araujo $
  */
 
 #ifndef	_BOOTROM_H_
@@ -33,6 +35,6 @@
 
 struct vmctx;
 
-int	bootrom_init(struct vmctx *ctx, const char *romfile);
+int bootrom_init(struct vmctx *ctx, const char *romfile);
 
 #endif

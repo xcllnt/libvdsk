@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/mevent.h 259998 2013-12-28 04:01:05Z jhb $
+ * $FreeBSD: head/usr.sbin/bhyve/mevent.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef	_MEVENT_H_

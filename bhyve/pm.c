@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
@@ -26,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/pm.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pm.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/types.h>
 #include <machine/vmm.h>

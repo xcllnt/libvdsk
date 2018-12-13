@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/mptbl.h 257423 2013-10-31 05:44:45Z neel $
+ * $FreeBSD: head/usr.sbin/bhyve/mptbl.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef _MPTBL_H_

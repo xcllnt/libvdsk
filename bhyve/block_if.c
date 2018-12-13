@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Peter Grehan <grehan@freebsd.org>
  * All rights reserved.
  *
@@ -22,12 +24,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD: head/usr.sbin/bhyve/block_if.c 335104 2018-06-14 01:34:53Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/block_if.c 286996 2015-08-21 15:20:01Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/block_if.c 335104 2018-06-14 01:34:53Z araujo $");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/queue.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -35,6 +42,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/block_if.c 286996 2015-08-21 15:20
 #include <sys/disk.h>
 
 #include <assert.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +50,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/block_if.c 286996 2015-08-21 15:20
 #include <pthread.h>
 #include <pthread_np.h>
 #include <signal.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <vdsk.h>
 
@@ -76,21 +85,28 @@ struct blockif_elem {
 	struct blockif_req  *be_req;
 	enum blockop	     be_op;
 	enum blockstat	     be_status;
-	pthread_t            be_tid;
+	pthread_t	     be_tid;
 	off_t		     be_block;
 };
 
 struct blockif_ctxt {
 	int			bc_magic;
+	int			bc_fd;
+	int			bc_ischr;
+	int			bc_isgeom;
 	int			bc_candelete;
 	int			bc_rdonly;
+	off_t			bc_size;
+	int			bc_sectsz;
+	int			bc_psectsz;
+	int			bc_psectoff;
 	int			bc_closing;
 	pthread_t		bc_btid[BLOCKIF_NUMTHR];
-        pthread_mutex_t		bc_mtx;
-        pthread_cond_t		bc_cond;
+	pthread_mutex_t		bc_mtx;
+	pthread_cond_t		bc_cond;
 
 	/* Request elements and free/pending/busy queues */
-	TAILQ_HEAD(, blockif_elem) bc_freeq;       
+	TAILQ_HEAD(, blockif_elem) bc_freeq;
 	TAILQ_HEAD(, blockif_elem) bc_pendq;
 	TAILQ_HEAD(, blockif_elem) bc_busyq;
 	struct blockif_elem	bc_reqs[BLOCKIF_MAXREQ];
@@ -197,21 +213,26 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 	int err;
 
 	br = be->be_req;
-	if (br->br_iovcnt <= 1)
-		buf = NULL;
 	err = 0;
 	switch (be->be_op) {
 	case BOP_READ:
-		err = vdsk_read(bc, br->br_offset, br->br_iov, br->br_iovcnt);
+		err = vdsk_read(bc, br, buf);
 		break;
 	case BOP_WRITE:
-		err = vdsk_write(bc, br->br_offset, br->br_iov, br->br_iovcnt);
+		if (bc->bc_rdonly) {
+			err = EROFS;
+			break;
+		}
+		err = vdsk_write(bc, br, buf);
 		break;
 	case BOP_FLUSH:
-		err = vdsk_flush(bc);
+		if (bc->bc_ischr)
+			err = vdsk_flush(bc, DIOCGFLUSH);
+		else
+			err = vdsk_flush(bc, 0);
 		break;
 	case BOP_DELETE:
-		err = vdsk_trim(bc, br->br_offset, br->br_resid);
+		err = vdsk_trim(bc, br->br_offset, &br->br_resid);
 		break;
 	default:
 		err = EINVAL;
@@ -229,15 +250,20 @@ blockif_thr(void *arg)
 	struct blockif_ctxt *bc;
 	struct blockif_elem *be;
 	pthread_t t;
+	uint8_t *buf;
 
 	bc = arg;
+	if (bc->bc_isgeom)
+		buf = malloc(MAXPHYS);
+	else
+		buf = NULL;
 	t = pthread_self();
 
 	pthread_mutex_lock(&bc->bc_mtx);
 	for (;;) {
 		while (blockif_dequeue(bc, t, &be)) {
 			pthread_mutex_unlock(&bc->bc_mtx);
-			blockif_proc(bc, be, NULL);
+			blockif_proc(bc, be, buf);
 			pthread_mutex_lock(&bc->bc_mtx);
 			blockif_complete(bc, be);
 		}
@@ -248,6 +274,8 @@ blockif_thr(void *arg)
 	}
 	pthread_mutex_unlock(&bc->bc_mtx);
 
+	if (buf)
+		free(buf);
 	pthread_exit(NULL);
 	return (NULL);
 }
@@ -288,13 +316,25 @@ struct blockif_ctxt *
 blockif_open(const char *optstr, const char *ident)
 {
 	char tname[MAXCOMLEN + 1];
+	//char name[MAXPATHLEN];
 	char *nopt, *xopts, *cp;
 	struct blockif_ctxt *bc;
-	int extra, i;
-	int nocache, sync, ro, candelete, ssopt, pssopt;
+	struct stat sbuf;
+	//struct diocgattr_arg arg;
+	off_t psectsz, psectoff;
+	int extra, fd, i;
+	int nocache, sync, ro, candelete, geom, ssopt, pssopt;
+#if 0
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	//cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+#endif
+
+#endif
 
 	pthread_once(&blockif_once, blockif_init);
 
+	fd = -1;
 	ssopt = 0;
 	nocache = 0;
 	sync = 0;
@@ -321,7 +361,7 @@ blockif_open(const char *optstr, const char *ident)
 			pssopt = ssopt;
 		else {
 			fprintf(stderr, "Invalid device option \"%s\"\n", cp);
-			return (NULL);
+			goto err;
 		}
 	}
 
@@ -331,6 +371,14 @@ blockif_open(const char *optstr, const char *ident)
 	if (sync)
 		extra |= O_SYNC;
 
+	/*
+	fd = open(nopt, (ro ? O_RDONLY : O_RDWR) | extra);
+	if (fd < 0 && !ro) {
+		// Attempt a r/w fail with a r/o open
+		fd = open(nopt, O_RDONLY | extra);
+		ro = 1;
+	}
+	*/
 	bc = vdsk_open(nopt, (ro ? O_RDONLY : O_RDWR) | extra, sizeof(*bc));
 	if (bc == NULL && !ro) {
 		/* Attempt a r/w fail with a r/o open */
@@ -338,14 +386,110 @@ blockif_open(const char *optstr, const char *ident)
 		ro = 1;
 	}
 
+	/*
+	if (fd < 0) {
+		warn("Could not open backing file: %s", nopt);
+		goto err;
+	}
+
+	if (fstat(fd, &sbuf) < 0) {
+		warn("Could not stat backing file %s", nopt);
+		goto err;
+	}
+	*/
+
+#if 0
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
+	    CAP_WRITE);
+	if (ro)
+		cap_rights_clear(&rights, CAP_FSYNC, CAP_WRITE);
+
+	if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+#endif
+
+#if 0
+	/*
+	 * Deal with raw devices
+	 */
+	size = sbuf.st_size;
+	sectsz = DEV_BSIZE;
+	psectsz = psectoff = 0;
+	candelete = geom = 0;
+	if (S_ISCHR(sbuf.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
+		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
+			perror("Could not fetch dev blk/sector size");
+			goto err;
+		}
+		assert(size != 0);
+		assert(sectsz != 0);
+		if (ioctl(fd, DIOCGSTRIPESIZE, &psectsz) == 0 && psectsz > 0)
+			ioctl(fd, DIOCGSTRIPEOFFSET, &psectoff);
+		strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
+		arg.len = sizeof(arg.value.i);
+		if (ioctl(fd, DIOCGATTR, &arg) == 0)
+			candelete = arg.value.i;
+		if (ioctl(fd, DIOCGPROVIDERNAME, name) == 0)
+			geom = 1;
+	} else
+		psectsz = sbuf.st_blksize;
+
+#ifndef WITHOUT_CAPSICUM
+	if (cap_ioctls_limit(fd, cmds, nitems(cmds)) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+	if (ssopt != 0) {
+		if (!powerof2(ssopt) || !powerof2(pssopt) || ssopt < 512 ||
+		    ssopt > pssopt) {
+			fprintf(stderr, "Invalid sector size %d/%d\n",
+			    ssopt, pssopt);
+			goto err;
+		}
+
+		/*
+		 * Some backend drivers (e.g. cd0, ada0) require that the I/O
+		 * size be a multiple of the device's sector size.
+		 *
+		 * Validate that the emulated sector size complies with this
+		 * requirement.
+		 */
+		if (S_ISCHR(sbuf.st_mode)) {
+			if (ssopt < sectsz || (ssopt % sectsz) != 0) {
+				fprintf(stderr, "Sector size %d incompatible "
+				    "with underlying device sector size %d\n",
+				    ssopt, sectsz);
+				goto err;
+			}
+		}
+
+		sectsz = ssopt;
+		psectsz = pssopt;
+		psectoff = 0;
+	}
+
+	bc = calloc(1, sizeof(struct blockif_ctxt));
+
+#endif
 	if (bc == NULL) {
-		perror("Could not open backing file");
-		return (NULL);
+		perror("calloc");
+		goto err;
 	}
 
 	bc->bc_magic = BLOCKIF_SIG;
+	//bc->bc_fd = fd;
+	bc->bc_ischr = S_ISCHR(sbuf.st_mode);
+	bc->bc_isgeom = geom;
 	bc->bc_candelete = candelete;
 	bc->bc_rdonly = ro;
+	//bc->bc_size = size;
+	//bc->bc_sectsz = sectsz;
+	bc->bc_psectsz = psectsz;
+	bc->bc_psectoff = psectoff;
 	pthread_mutex_init(&bc->bc_mtx, NULL);
 	pthread_cond_init(&bc->bc_cond, NULL);
 	TAILQ_INIT(&bc->bc_freeq);
@@ -363,6 +507,10 @@ blockif_open(const char *optstr, const char *ident)
 	}
 
 	return (bc);
+err:
+	if (fd >= 0)
+		close(fd);
+	return (NULL);
 }
 
 static int
@@ -497,7 +645,7 @@ blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 	pthread_mutex_unlock(&bc->bc_mtx);
 
 	/*
-	 * The processing thread has been interrupted.  Since it's not
+	 * The processing thread has been interrupted.	Since it's not
 	 * clear if the callback has been invoked yet, return EBUSY.
 	 */
 	return (EBUSY);
@@ -507,9 +655,7 @@ int
 blockif_close(struct blockif_ctxt *bc)
 {
 	void *jval;
-	int err, i;
-
-	err = 0;
+	int i;
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
@@ -530,6 +676,10 @@ blockif_close(struct blockif_ctxt *bc)
 	 */
 	bc->bc_magic = 0;
 	vdsk_close(bc);
+	/*
+	close(bc->bc_fd);
+	free(bc);
+	*/
 
 	return (0);
 }
@@ -548,6 +698,7 @@ blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s)
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
+	//sectors = bc->bc_size / bc->bc_sectsz;
 	sectors = vdsk_capacity(bc) / vdsk_sectorsize(bc);
 
 	/* Clamp the size to the largest possible with CHS */
@@ -591,7 +742,8 @@ blockif_size(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (vdsk_capacity(bc));
+	//return (bc->bc_size);
+	return(vdsk_capacity(bc));
 }
 
 int
@@ -599,7 +751,8 @@ blockif_sectsz(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (vdsk_sectorsize(bc));
+	//return (bc->bc_sectsz);
+	return(vdsk_sectorsize(bc));
 }
 
 void
@@ -607,8 +760,8 @@ blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	*size = vdsk_sectorsize(bc);
-	*off = 0;
+	*size = bc->bc_psectsz;
+	*off = bc->bc_psectoff;
 }
 
 int

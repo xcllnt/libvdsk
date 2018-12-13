@@ -100,6 +100,9 @@ vdsk_probe(struct vdsk *vdsk)
 	free(fmts);
 	if (fmt == NULL)
 		errno = EFTYPE;
+
+	printf("===> Format name: %s\n", fmt->name);
+	printf("===> Format Description: %s\n", fmt->description);
 	return (fmt);
 }
 
@@ -208,41 +211,57 @@ vdsk_sectorsize(vdskctx ctx)
 	return (vdsk->sectorsize);
 }
 
-int
-vdsk_read(vdskctx ctx, off_t offset, const struct iovec *iov, int iovcnt)
+ssize_t
+vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
-	return (vdsk->fmt->read(vdsk, offset, iov, iovcnt));
+	return (vdsk->fmt->readv(vdsk, iov, iovcnt, offset));
 }
 
-int
-vdsk_write(vdskctx ctx, off_t offset, const struct iovec *iov, int iovcnt)
+ssize_t
+vdsk_read(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->fmt->read(vdsk, buffer, nbytes, offset));
+}
+
+ssize_t
+vdsk_writev(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->write(vdsk, offset, iov, iovcnt));
+	return (vdsk->fmt->writev(vdsk, iov, iovcnt, offset));
+}
+
+ssize_t
+vdsk_write(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->fmt->write(vdsk, buffer, nbytes, offset));
 }
 
 int
-vdsk_trim(vdskctx ctx, off_t offset, ssize_t length)
+vdsk_trim(vdskctx ctx, unsigned long diocg, off_t arg[2])
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->trim(vdsk, offset, length));
+	return (vdsk->fmt->trim(vdsk, diocg, arg));
 }
 
 int
-vdsk_flush(vdskctx ctx)
+vdsk_flush(vdskctx ctx, unsigned long diocg)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (0);
-	return (vdsk->fmt->flush(vdsk));
+	return (vdsk->fmt->flush(vdsk, diocg));
 }
 

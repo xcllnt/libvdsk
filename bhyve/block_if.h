@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Peter Grehan <grehan@freebsd.org>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/block_if.h 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/block_if.h 335974 2018-07-05 03:33:58Z araujo $
  */
 
 /*
@@ -42,12 +44,12 @@
 #define BLOCKIF_IOV_MAX		33	/* not practical to be IOV_MAX */
 
 struct blockif_req {
-	struct iovec	br_iov[BLOCKIF_IOV_MAX];
 	int		br_iovcnt;
 	off_t		br_offset;
 	ssize_t		br_resid;
 	void		(*br_callback)(struct blockif_req *req, int err);
 	void		*br_param;
+	struct iovec	br_iov[BLOCKIF_IOV_MAX];
 };
 
 struct blockif_ctxt;

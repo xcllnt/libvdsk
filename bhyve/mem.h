@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/mem.h 269700 2014-08-08 03:49:01Z neel $
+ * $FreeBSD: head/usr.sbin/bhyve/mem.h 335104 2018-06-14 01:34:53Z araujo $
  */
 
 #ifndef _MEM_H_
@@ -53,7 +55,9 @@ struct mem_range {
 void	init_mem(void);
 int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie,
 		    struct vm_guest_paging *paging);
-		    
+
+int	read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval,
+		 int size);
 int	register_mem(struct mem_range *memp);
 int	register_mem_fallback(struct mem_range *memp);
 int	unregister_mem(struct mem_range *memp);

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Peter Grehan <grehan@freebsd.org>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/rtc.h 279575 2015-03-04 02:47:13Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/rtc.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef _RTC_H_

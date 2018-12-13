@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/pci_lpc.h 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/pci_lpc.h 338210 2018-08-22 20:23:08Z araujo $
  */
 
 #ifndef _LPC_H_
@@ -66,6 +68,7 @@ struct lpc_sysres {
 #define	SYSRES_MEM(base, length)	LPC_SYSRES(LPC_SYSRES_MEM, base, length)
 
 int	lpc_device_parse(const char *opt);
+void    lpc_print_supported_devices();
 char	*lpc_pirq_name(int pin);
 void	lpc_pirq_routed(void);
 const char *lpc_bootrom(void);

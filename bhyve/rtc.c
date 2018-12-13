@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/rtc.c 279575 2015-03-04 02:47:13Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/rtc.c 335104 2018-06-14 01:34:53Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/rtc.c 279575 2015-03-04 02:47:13Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/rtc.c 335104 2018-06-14 01:34:53Z araujo $");
 
 #include <sys/types.h>
 
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/rtc.c 279575 2015-03-04 02:47:13Z 
 #define	RTC_HMEM_SB	0x5c
 #define	RTC_HMEM_MSB	0x5d
 
-#define m_64KB		(64*1024)
+#define	m_64KB		(64*1024)
 #define	m_16MB		(16*1024*1024)
 #define	m_4GB		(4ULL*1024*1024*1024)
 

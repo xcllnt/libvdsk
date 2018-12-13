@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/xmsr.c 279575 2015-03-04 02:47:13Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/xmsr.c 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/xmsr.c 279575 2015-03-04 02:47:13Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/xmsr.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/types.h>
 
@@ -48,9 +50,6 @@ static int cpu_vendor_intel, cpu_vendor_amd;
 int
 emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 {
-
-	if (num == MSR_PAT)
-		return 0;
 
 	if (cpu_vendor_intel) {
 		switch (num) {
@@ -191,7 +190,7 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 		/*
 		 * OpenBSD guests test bit 0 of this MSR to detect if the
 		 * workaround for erratum 721 is already applied.
-		 * http://support.amd.com/TechDocs/41322_10h_Rev_Gd.pdf
+		 * https://support.amd.com/TechDocs/41322_10h_Rev_Gd.pdf
 		 */
 		case 0xC0011029:
 			*val = 1;

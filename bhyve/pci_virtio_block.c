@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/pci_virtio_block.c 286979 2015-08-21 05:02:26Z marcel $
+ * $FreeBSD: head/usr.sbin/bhyve/pci_virtio_block.c 336162 2018-07-10 05:36:32Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/pci_virtio_block.c 286979 2015-08-21 05:02:26Z marcel $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_block.c 336162 2018-07-10 05:36:32Z araujo $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -107,9 +109,9 @@ struct virtio_blk_hdr {
 #define	VBH_OP_WRITE		1
 #define	VBH_OP_FLUSH		4
 #define	VBH_OP_FLUSH_OUT	5
-#define	VBH_OP_IDENT		8		
+#define	VBH_OP_IDENT		8
 #define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
-	uint32_t       	vbh_type;
+	uint32_t	vbh_type;
 	uint32_t	vbh_ioprio;
 	uint64_t	vbh_sector;
 } __packed;
@@ -123,8 +125,8 @@ static int pci_vtblk_debug;
 
 struct pci_vtblk_ioreq {
 	struct blockif_req		io_req;
-	struct pci_vtblk_softc	       *io_sc;
-	uint8_t			       *io_status;
+	struct pci_vtblk_softc		*io_sc;
+	uint8_t				*io_status;
 	uint16_t			io_idx;
 };
 
@@ -149,7 +151,7 @@ static int pci_vtblk_cfgwrite(void *, int, int, uint32_t);
 static struct virtio_consts vtblk_vi_consts = {
 	"vtblk",		/* our name */
 	1,			/* we support 1 virtqueue */
-	sizeof(struct vtblk_config), /* config reg size */
+	sizeof(struct vtblk_config),	/* config reg size */
 	pci_vtblk_reset,	/* reset */
 	pci_vtblk_notify,	/* device-wide qnotify */
 	pci_vtblk_cfgread,	/* read PCI config */
@@ -200,7 +202,6 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	int err;
 	ssize_t iolen;
 	int writeop, type;
-	off_t offset;
 	struct iovec iov[BLOCKIF_IOV_MAX + 2];
 	uint16_t idx, flags[BLOCKIF_IOV_MAX + 2];
 
@@ -248,8 +249,9 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	}
 	io->io_req.br_resid = iolen;
 
-	DPRINTF(("virtio-block: %s op, %zd bytes, %d segs, offset %ld\n\r", 
-		 writeop ? "write" : "read/ident", iolen, i - 1, offset));
+	DPRINTF(("virtio-block: %s op, %zd bytes, %d segs, offset %ld\n\r",
+		 writeop ? "write" : "read/ident", iolen, i - 1,
+		 io->io_req.br_offset));
 
 	switch (type) {
 	case VBH_OP_READ:
@@ -307,7 +309,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
 	bctxt = blockif_open(opts, bident);
-	if (bctxt == NULL) {       	
+	if (bctxt == NULL) {
 		perror("Could not open backing file");
 		return (1);
 	}
@@ -341,7 +343,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	MD5Init(&mdctx);
 	MD5Update(&mdctx, opts, strlen(opts));
-	MD5Final(digest, &mdctx);	
+	MD5Final(digest, &mdctx);
 	sprintf(sc->vbsc_ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
 	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
 

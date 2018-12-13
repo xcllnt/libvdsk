@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/mptbl.c 266125 2014-05-15 14:16:55Z jhb $
+ * $FreeBSD: head/usr.sbin/bhyve/mptbl.c 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/marcel/libvdsk/bhyve/mptbl.c 266125 2014-05-15 14:16:55Z jhb $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/mptbl.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/types.h>
 #include <sys/errno.h>

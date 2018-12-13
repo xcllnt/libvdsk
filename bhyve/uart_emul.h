@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: user/marcel/libvdsk/bhyve/uart_emul.h 257293 2013-10-29 00:18:11Z neel $
+ * $FreeBSD: head/usr.sbin/bhyve/uart_emul.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef _UART_EMUL_H_
