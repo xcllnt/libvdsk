@@ -210,90 +210,20 @@ static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
 	struct blockif_req *br;
-	off_t arg[2];
-	ssize_t clen, len, off, boff, voff;
-	int i, err;
+	int err;
 
 	br = be->be_req;
-	if (br->br_iovcnt <= 1)
-		buf = NULL;
 	err = 0;
 	switch (be->be_op) {
 	case BOP_READ:
-		if (buf == NULL) {
-			if ((len = vdsk_readv(bc, br->br_iov, br->br_iovcnt,
-				   br->br_offset)) < 0)
-				err = errno;
-			else
-				br->br_resid -= len;
-			break;
-		}
-		i = 0;
-		off = voff = 0;
-		while (br->br_resid > 0) {
-			len = MIN(br->br_resid, MAXPHYS);
-			if (vdsk_read(bc, buf, len, br->br_offset +
-			    off) < 0) {
-				err = errno;
-				break;
-			}
-			boff = 0;
-			do {
-				clen = MIN(len - boff, br->br_iov[i].iov_len -
-				    voff);
-				memcpy(br->br_iov[i].iov_base + voff,
-				    buf + boff, clen);
-				if (clen < br->br_iov[i].iov_len - voff)
-					voff += clen;
-				else {
-					i++;
-					voff = 0;
-				}
-				boff += clen;
-			} while (boff < len);
-			off += len;
-			br->br_resid -= len;
-		}
+		err = vdsk_read(bc, br, buf);
 		break;
 	case BOP_WRITE:
 		if (bc->bc_rdonly) {
 			err = EROFS;
 			break;
 		}
-		if (buf == NULL) {
-			if ((len = vdsk_writev(bc, br->br_iov, br->br_iovcnt,
-				    br->br_offset)) < 0)
-				err = errno;
-			else
-				br->br_resid -= len;
-			break;
-		}
-		i = 0;
-		off = voff = 0;
-		while (br->br_resid > 0) {
-			len = MIN(br->br_resid, MAXPHYS);
-			boff = 0;
-			do {
-				clen = MIN(len - boff, br->br_iov[i].iov_len -
-				    voff);
-				memcpy(buf + boff,
-				    br->br_iov[i].iov_base + voff, clen);
-				if (clen < br->br_iov[i].iov_len - voff)
-					voff += clen;
-				else {
-					i++;
-					voff = 0;
-				}
-				boff += clen;
-			} while (boff < len);
-			if (vdsk_write(bc, buf, len, br->br_offset +
-			    off) < 0) {
-				err = errno;
-				break;
-			}
-			off += len;
-			br->br_resid -= len;
-		}
+		err = vdsk_write(bc, br, buf);
 		break;
 	case BOP_FLUSH:
 		if (bc->bc_ischr)
@@ -302,19 +232,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			err = vdsk_flush(bc, 0);
 		break;
 	case BOP_DELETE:
-		if (!bc->bc_candelete)
-			err = EOPNOTSUPP;
-		else if (bc->bc_rdonly)
-			err = EROFS;
-		else if (bc->bc_ischr) {
-			arg[0] = br->br_offset;
-			arg[1] = br->br_resid;
-			if (vdsk_trim(bc, DIOCGDELETE, arg))
-				err = errno;
-			else
-				br->br_resid = 0;
-		} else
-			err = EOPNOTSUPP;
+		err = vdsk_trim(bc, br->br_offset, &br->br_resid);
 		break;
 	default:
 		err = EINVAL;

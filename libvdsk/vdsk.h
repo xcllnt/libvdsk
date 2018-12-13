@@ -33,6 +33,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "block_if.h"
+
 typedef void *vdskctx;
 
 vdskctx	vdsk_open(const char *, int, size_t);
@@ -41,10 +43,8 @@ int	vdsk_close(vdskctx);
 off_t	vdsk_capacity(vdskctx);
 int	vdsk_sectorsize(vdskctx);
 
-ssize_t	vdsk_readv(vdskctx, const struct iovec *, int, off_t);
-ssize_t	vdsk_read(vdskctx, void *, size_t, off_t);
-ssize_t	vdsk_writev(vdskctx, const struct iovec *, int, off_t);
-ssize_t	vdsk_write(vdskctx, void *, size_t, off_t);
+int	vdsk_read(vdskctx, struct blockif_req *, uint8_t *);
+int	vdsk_write(vdskctx, struct blockif_req *, uint8_t *);
 int	vdsk_trim(vdskctx, unsigned long, off_t arg[2]);
 int	vdsk_flush(vdskctx, unsigned long);
 
