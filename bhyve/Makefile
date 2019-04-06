@@ -2,7 +2,11 @@
 # $FreeBSD: head/usr.sbin/bhyve/Makefile 335974 2018-07-05 03:33:58Z araujo $
 #
 
-.include <src.opts.mk>
+LDADD=-lvmmapi -lmd -lpthread -lz -lsbuf -lcam -lvdsk -lcrypto
+
+MK_OPENSSL=yes
+SRCTOP=/usr/src
+
 CFLAGS+=-I${SRCTOP}/sys
 .PATH:  ${SRCTOP}/sys/cam/ctl
 
