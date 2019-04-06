@@ -31,9 +31,6 @@
 
 #include <sys/linker_set.h>
 
-#define DPRINTF(params) if (vdsk_debug) printf params
-#define WPRINTF(params) printf params
-
 struct vdsk;
 
 /*
@@ -51,12 +48,12 @@ struct vdsk_format {
 	int	(*probe)(struct vdsk *);
 	int	(*open)(struct vdsk *);
 	int	(*close)(struct vdsk *);
-	ssize_t	(*readv)(struct vdsk *, const struct iovec *, int, off_t);
 	ssize_t	(*read)(struct vdsk *, void *, size_t, off_t);
+	ssize_t	(*write)(struct vdsk *, const void *, size_t, off_t);
+	ssize_t	(*readv)(struct vdsk *, const struct iovec *, int, off_t);
 	ssize_t	(*writev)(struct vdsk *, const struct iovec *, int, off_t);
-	ssize_t	(*write)(struct vdsk *, void *, size_t, off_t);
-	int	(*trim)(struct vdsk *, unsigned long, off_t arg[2]);
-	int	(*flush)(struct vdsk *, unsigned long);
+	int	(*trim)(struct vdsk *, off_t, size_t);
+	int	(*flush)(struct vdsk *);
 };
 
 SET_DECLARE(libvdsk_formats, struct vdsk_format);
@@ -74,5 +71,13 @@ struct vdsk {
 	off_t	capacity;
 	int	sectorsize;
 } __attribute__((aligned(16)));
+
+
+static inline int
+vdsk_is_dev(struct vdsk *vdsk)
+{
+
+	return ((S_ISCHR(vdsk->fsbuf.st_mode)) ? 1 : 0);
+}
 
 #endif /* __VDSK_INT_H__ */

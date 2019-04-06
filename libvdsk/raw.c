@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/raw.c 286996 2015-08-21 15:20:01
 
 #include "vdsk_int.h"
 
-static int vdsk_debug = 0;
-
 static int
 raw_probe(struct vdsk *vdsk __unused)
 {
@@ -64,139 +62,75 @@ raw_close(struct vdsk *vdsk __unused)
 	return (0);
 }
 
-static int
-raw_read(struct vdsk *vdsk, struct blockif_req *br, uint8_t *buf)
+static ssize_t
+raw_read(struct vdsk *vdsk, void *buf, size_t nbytes, off_t offset)
 {
-	DPRINTF(("===> raw_read\n"));
+	ssize_t res;
 
-	ssize_t clen, len, off, boff, voff;
-	int i, err;
+	res = pread(vdsk->fd, buf, nbytes, offset);
+	return (res);
+}
 
-	if (br->br_iovcnt <= 1)
-		buf = NULL;
-	err = 0;
+static ssize_t
+raw_write(struct vdsk *vdsk, const void *buf, size_t nbytes, off_t offset)
+{
+	ssize_t res;
 
-	if (buf == NULL) {
-		DPRINTF(("+===> br->br_iovcnt: %d\n", br->br_iovcnt));
-		DPRINTF(("+===> br->br_offset: %lu\n", br->br_offset));
-		DPRINTF(("+===> br->br_resid: %lu\n", br->br_resid));
+	res = pwrite(vdsk->fd, buf, nbytes, offset);
+	return (res);
+}
 
-		if ((len = preadv(vdsk->fd, br->br_iov, br->br_iovcnt,
-			   br->br_offset)) < 0)
-			err = errno;
-		else
-			br->br_resid -= len;
+static ssize_t
+raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t res;
 
-		DPRINTF(("===> br->br_iovcnt: %d\n", br->br_iovcnt));
-		DPRINTF(("===> br->br_offset: %lu\n", br->br_offset));
-		DPRINTF(("===> br->br_resid: %lu\n", br->br_resid));
+	res = preadv(vdsk->fd, iov, iovcnt, offset);
+	return (res);
+}
 
-		return (err);
+static ssize_t
+raw_writev(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t res;
+
+	res = pwritev(vdsk->fd, iov, iovcnt, offset);
+	return (res);
+}
+
+static int
+raw_trim(struct vdsk *vdsk, off_t offset, size_t length)
+{
+	int error;
+
+	error = 0;
+	if (vdsk_is_dev(vdsk)) {
+		off_t arg[2];
+
+		arg[0] = offset;
+		arg[1] = length;
+		if (ioctl(vdsk->fd, DIOCGDELETE, arg) < 0)
+			error = errno;
 	} else {
-		DPRINTF(("BUF is not NULL\n"));
-		exit(-1);
+		/* XXX what about creating a sparse file? */
 	}
-	i = 0;
-	off = voff = 0;
-	while (br->br_resid > 0) {
-		len = MIN(br->br_resid, MAXPHYS);
-		if (pread(vdsk->fd, buf, len, br->br_offset + off) < 0) {
-			err = errno;
-			break;
-		}
-		boff = 0;
-		do {
-			clen = MIN(len - boff, br->br_iov[i].iov_len - voff);
-			memcpy(br->br_iov[i].iov_base + voff, buf + boff, clen);
-			if (clen < br->br_iov[i].iov_len - voff)
-				voff += clen;
-			else {
-				i++;
-				voff = 0;
-			}
-			boff += len;
-		} while (boff < len);
-		off += len;
-		br->br_resid -= len;
-	}
-	return (err);
+	return (error);
 }
 
 static int
-raw_write(struct vdsk *vdsk, struct blockif_req *br, uint8_t *buf)
+raw_flush(struct vdsk *vdsk)
 {
-	DPRINTF(("===> raw_write\n"));
+	int error;
 
-	ssize_t clen, len, off, boff, voff;
-	int i, err;
-
-	if (buf == NULL) {
-		if ((len = pwritev(vdsk->fd, br->br_iov, br->br_iovcnt,
-			    br->br_offset)) < 0)
-			err = errno;
-		else
-			br->br_resid -= len;
-		return (err);
+	error = 0;
+	if (vdsk_is_dev(vdsk)) {
+		if (ioctl(vdsk->fd, DIOCGFLUSH) < 0)
+			error = errno;
+	} else {
+		if (fsync(vdsk->fd) == -1)
+			error = errno;
 	}
-	i = 0;
-	off = voff = 0;
-	while (br->br_resid > 0) {
-		len = MIN(br->br_resid, MAXPHYS);
-		boff = 0;
-		do {
-			clen = MIN(len - boff, br->br_iov[i].iov_len - voff);
-			memcpy(buf + boff, br->br_iov[i].iov_base + voff, clen);
-			if (clen < br->br_iov[i].iov_len - voff)
-				voff += clen;
-			else {
-				i++;
-				voff = 0;
-			}
-			boff += clen;
-		} while (boff < len);
-		if (pwrite(vdsk->fd, buf, len, br->br_offset + off) < 0) {
-			err = errno;
-			return (err);
-		}
-		off += len;
-		br->br_resid -= len;
-	}
-	return (err);
-}
-
-static int
-raw_trim(struct vdsk *vdsk, unsigned long diocg, off_t arg[2])
-{
-	int res = 0;
-
-	DPRINTF(("==> raw_flush\n"));
-	DPRINTF(("==> diocg: %lu\n", diocg));
-
-	if (ioctl(vdsk->fd, diocg, arg))
-		res = errno;
-
-	return (res);
-}
-
-static int
-raw_flush(struct vdsk *vdsk, unsigned long diocg)
-{
-	int res = 0;
-
-	DPRINTF(("==> raw_flush\n"));
-	DPRINTF(("==> diocg: %lu\n", diocg));
-
-	if (diocg != 0) {
-		if (ioctl(vdsk->fd, diocg))
-			res = errno;
-	} else if (fsync(vdsk->fd) == -1) {
-		res = errno;
-
-	}
-
-	DPRINTF(("==> return res: %d\n", res));
-
-	return (res);
+	return (error);
 }
 
 static struct vdsk_format raw_format = {
@@ -208,7 +142,10 @@ static struct vdsk_format raw_format = {
 	.close = raw_close,
 	.read = raw_read,
 	.write = raw_write,
+	.readv = raw_readv,
+	.writev = raw_writev,
 	.trim = raw_trim,
 	.flush = raw_flush,
 };
 FORMAT_DEFINE(raw_format);
+

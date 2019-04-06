@@ -62,25 +62,46 @@ vhd_close(struct vdsk *vdsk __unused)
 	return (ENOSYS);
 }
 
-static int
-vhd_read(struct vdsk *vdsk __unused, off_t offset __unused,
-    const struct iovec *iov __unused, int iovcnt __unused)
+static ssize_t
+vhd_read(struct vdsk *vdsk __unused, void *buf __unused,
+    size_t nbytes __unused, off_t offset __unused)
 {
 
-	return (ENOSYS);
+	errno = ENOSYS;
+	return (-1);
 }
 
-static int
-vhd_write(struct vdsk *vdsk __unused, off_t offset __unused,
-    const struct iovec *iov __unused, int iovcnt __unused)
+
+static ssize_t
+vhd_readv(struct vdsk *vdsk __unused, const struct iovec *iov __unused,
+    int iovcnt __unused, off_t offset __unused)
 {
 
-	return (ENOSYS);
+	errno = ENOSYS;
+	return (-1);
+}
+
+static ssize_t
+vhd_write(struct vdsk *vdsk __unused, const void *buf __unused,
+    size_t nbytes __unused, off_t offset __unused)
+{
+
+	errno = ENOSYS;
+	return (-1);
+}
+
+static ssize_t
+vhd_writev(struct vdsk *vdsk __unused, const struct iovec *iov __unused,
+    int iovcnt __unused, off_t offset __unused)
+{
+
+	errno = ENOSYS;
+	return (-1);
 }
 
 static int
 vhd_trim(struct vdsk *vdsk __unused, off_t offset __unused,
-    ssize_t length __unused)
+    size_t length __unused)
 {
 
 	return (ENOSYS);
@@ -102,6 +123,8 @@ static struct vdsk_format vhd_format = {
 	.close = vhd_close,
 	.read = vhd_read,
 	.write = vhd_write,
+	.readv = vhd_readv,
+	.writev = vhd_writev,
 	.trim = vhd_trim,
 	.flush = vhd_flush,
 };

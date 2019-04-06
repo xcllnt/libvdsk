@@ -40,13 +40,6 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/vdsk.c 286996 2015-08-21 15:20:0
 
 #include "vdsk_int.h"
 
-static inline int
-vdsk_is_dev(struct vdsk *vdsk)
-{
-
-	return ((S_ISCHR(vdsk->fsbuf.st_mode)) ? 1 : 0);
-}
-
 static struct vdsk *
 vdsk_deref(vdskctx ctx)
 {
@@ -238,7 +231,7 @@ vdsk_writev(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 }
 
 ssize_t
-vdsk_write(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
+vdsk_write(vdskctx ctx, const void *buffer, size_t nbytes, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
@@ -246,22 +239,22 @@ vdsk_write(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
 }
 
 int
-vdsk_trim(vdskctx ctx, unsigned long diocg, off_t arg[2])
+vdsk_trim(vdskctx ctx, off_t offset, size_t length)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->trim(vdsk, diocg, arg));
+	return (vdsk->fmt->trim(vdsk, offset, length));
 }
 
 int
-vdsk_flush(vdskctx ctx, unsigned long diocg)
+vdsk_flush(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (0);
-	return (vdsk->fmt->flush(vdsk, diocg));
+	return (vdsk->fmt->flush(vdsk));
 }
 
