@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/acpi.c 335104 2018-06-14 01:34:53Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/acpi.c 344446 2019-02-21 21:15:49Z jkim $
  */
 
 /*
@@ -53,7 +53,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/acpi.c 335104 2018-06-14 01:34:53Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/acpi.c 344446 2019-02-21 21:15:49Z jkim $");
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -256,6 +256,7 @@ basl_fwrite_madt(FILE *fp)
 		EFPRINTF(fp, "[0001]\t\tLocal Apic ID : %02x\n", i);
 		EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
 		EFPRINTF(fp, "\t\t\tProcessor Enabled : 1\n");
+		EFPRINTF(fp, "\t\t\tRuntime Online Capable : 0\n");
 		EFPRINTF(fp, "\n");
 	}
 

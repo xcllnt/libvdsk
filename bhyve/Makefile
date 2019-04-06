@@ -1,9 +1,11 @@
 #
-# $FreeBSD: head/usr.sbin/bhyve/Makefile 335974 2018-07-05 03:33:58Z araujo $
+# $FreeBSD: head/usr.sbin/bhyve/Makefile 339681 2018-10-24 08:45:33Z bz $
 #
 
 LDADD=-lvmmapi -lmd -lpthread -lz -lsbuf -lcam -lvdsk -lcrypto
 
+MK_INET_SUPPORT=yes
+MK_INET6_SUPPORT=yes
 MK_OPENSSL=yes
 SRCTOP=/usr/src
 
@@ -77,6 +79,12 @@ SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread z util sbuf cam vdsk
 
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+=-DINET
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=-DINET6
+.endif
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
 .else

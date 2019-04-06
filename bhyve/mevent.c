@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/mevent.c 335104 2018-06-14 01:34:53Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/mevent.c 343068 2019-01-16 00:39:23Z araujo $
  */
 
 /*
@@ -34,9 +34,12 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/mevent.c 335104 2018-06-14 01:34:53Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/mevent.c 343068 2019-01-16 00:39:23Z araujo $");
 
 #include <assert.h>
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -420,7 +423,7 @@ mevent_dispatch(void)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_KQUEUE);
-	if (cap_rights_limit(mfd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(mfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
@@ -437,9 +440,9 @@ mevent_dispatch(void)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(mevent_pipefd[0], &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(mevent_pipefd[0], &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_rights_limit(mevent_pipefd[1], &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(mevent_pipefd[1], &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 

@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/dbgport.c 336188 2018-07-11 03:23:09Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/dbgport.c 343068 2019-01-16 00:39:23Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/dbgport.c 336188 2018-07-11 03:23:09Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/dbgport.c 343068 2019-01-16 00:39:23Z araujo $");
 
 #include <sys/types.h>
 #ifndef WITHOUT_CAPSICUM
@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/dbgport.c 336188 2018-07-11 03:23:09Z ar
 #include <netinet/tcp.h>
 #include <sys/uio.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -167,7 +170,7 @@ init_dbgport(int sport)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(listen_fd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(listen_fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 

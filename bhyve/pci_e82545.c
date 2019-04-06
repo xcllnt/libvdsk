@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_e82545.c 336188 2018-07-11 03:23:09Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_e82545.c 343068 2019-01-16 00:39:23Z araujo $");
 
 #include <sys/types.h>
 #ifndef WITHOUT_CAPSICUM
@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_e82545.c 336188 2018-07-11 03:23:09Z
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -2240,7 +2243,7 @@ e82545_open_tap(struct e82545_softc *sc, char *opts)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(sc->esc_tapfd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(sc->esc_tapfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 	

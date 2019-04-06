@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/pci_emul.c 338210 2018-08-22 20:23:08Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/pci_emul.c 345171 2019-03-15 02:11:28Z chuck $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_emul.c 338210 2018-08-22 20:23:08Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_emul.c 345171 2019-03-15 02:11:28Z chuck $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -953,7 +953,10 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 	bzero(&pciecap, sizeof(pciecap));
 
 	pciecap.capid = PCIY_EXPRESS;
-	pciecap.pcie_capabilities = PCIECAP_VERSION | PCIEM_TYPE_ROOT_PORT;
+	pciecap.pcie_capabilities = PCIECAP_VERSION | type;
+	/* Devices starting with version 1.1 must set the RBER bit */
+	if (PCIECAP_VERSION >= 1)
+		pciecap.dev_capabilities = PCIEM_CAP_ROLE_ERR_RPT;
 	pciecap.link_capabilities = 0x411;	/* gen1, x1 */
 	pciecap.link_status = 0x11;		/* gen1, x1 */
 

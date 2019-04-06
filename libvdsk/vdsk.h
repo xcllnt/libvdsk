@@ -39,7 +39,10 @@ vdskctx	vdsk_open(const char *, int, size_t);
 int	vdsk_close(vdskctx);
 
 off_t	vdsk_capacity(vdskctx);
-int	vdsk_sectorsize(vdskctx);
+int	vdsk_sector_size(vdskctx);
+
+int	vdsk_stripe_size(vdskctx);
+int	vdsk_stripe_offset(vdskctx);
 
 ssize_t	vdsk_read(vdskctx, void *, size_t, off_t);
 ssize_t	vdsk_write(vdskctx, const void *, size_t, off_t);

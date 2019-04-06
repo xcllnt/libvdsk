@@ -137,11 +137,11 @@ vdsk_open(const char *path, int flags, size_t size)
 			    &vdsk->capacity) < 0)
 				break;
 			if (ioctl(vdsk->fd, DIOCGSECTORSIZE,
-			    &vdsk->sectorsize) < 0)
+			    &vdsk->sector_size) < 0)
 				break;
 		} else {
 			vdsk->capacity = vdsk->fsbuf.st_size;
-			vdsk->sectorsize = DEV_BSIZE;
+			vdsk->sector_size = DEV_BSIZE;
 		}
 
 		vdsk->fmt = vdsk_probe(vdsk);
@@ -197,12 +197,29 @@ vdsk_capacity(vdskctx ctx)
 }
 
 int
-vdsk_sectorsize(vdskctx ctx)
+vdsk_sector_size(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
-	return (vdsk->sectorsize);
+	return (vdsk->sector_size);
 }
+
+int
+vdsk_stripe_size(vdskctx ctx)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->stripe_size);
+}
+
+int
+vdsk_stripe_offset(vdskctx ctx)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->stripe_offset);
+}
+                
 
 ssize_t
 vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)

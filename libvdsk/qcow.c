@@ -80,14 +80,14 @@ qcow_probe(struct vdsk *vdsk)
 {
 	struct qcow_header *hdr;
 
-	if (vdsk->sectorsize < 512 || vdsk->sectorsize > 4096)
+	if (vdsk->sector_size < 512 || vdsk->sector_size > 4096)
 		return (ENOTBLK);
 
-	hdr = malloc(vdsk->sectorsize);
+	hdr = malloc(vdsk->sector_size);
 	if (hdr == NULL)
 		return (errno);
 
-	if (read(vdsk->fd, hdr, vdsk->sectorsize) != vdsk->sectorsize)
+	if (read(vdsk->fd, hdr, vdsk->sector_size) != vdsk->sector_size)
 		goto out;
 
 	if (be32dec(&hdr->magic) != QCOW_MAGIC) {

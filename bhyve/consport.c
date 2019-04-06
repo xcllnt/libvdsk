@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/consport.c 335104 2018-06-14 01:34:53Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/consport.c 343068 2019-01-16 00:39:23Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/consport.c 335104 2018-06-14 01:34:53Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/consport.c 343068 2019-01-16 00:39:23Z araujo $");
 
 #include <sys/types.h>
 #ifndef WITHOUT_CAPSICUM
@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/consport.c 335104 2018-06-14 01:34:53Z a
 #endif
 #include <sys/select.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -138,11 +141,9 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 #ifndef WITHOUT_CAPSICUM
 		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
 		    CAP_WRITE);
-		if (cap_rights_limit(STDIN_FILENO, &rights) == -1 &&
-		    errno != ENOSYS)
+		if (caph_rights_limit(STDIN_FILENO, &rights) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
-		if (cap_ioctls_limit(STDIN_FILENO, cmds, nitems(cmds)) == -1 &&
-		    errno != ENOSYS)
+		if (caph_ioctls_limit(STDIN_FILENO, cmds, nitems(cmds)) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 		ttyopen();

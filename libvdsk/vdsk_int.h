@@ -69,7 +69,9 @@ struct vdsk {
 	char	*filename;
 	struct stat fsbuf;
 	off_t	capacity;
-	int	sectorsize;
+	int	sector_size;
+	int	stripe_size;
+	int	stripe_offset;
 } __attribute__((aligned(16)));
 
 

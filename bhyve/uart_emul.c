@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/uart_emul.c 335104 2018-06-14 01:34:53Z araujo $
+ * $FreeBSD: head/usr.sbin/bhyve/uart_emul.c 345158 2019-03-14 21:08:48Z cem $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/uart_emul.c 335104 2018-06-14 01:34:53Z araujo $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/uart_emul.c 345158 2019-03-14 21:08:48Z cem $");
 
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
@@ -431,6 +431,9 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		sc->thre_int_pending = true;
 		break;
 	case REG_IER:
+		/* Set pending when IER_ETXRDY is raised (edge-triggered). */
+		if ((sc->ier & IER_ETXRDY) == 0 && (value & IER_ETXRDY) != 0)
+			sc->thre_int_pending = true;
 		/*
 		 * Apply mask so that bits 4-7 are 0
 		 * Also enables bits 0-3 only if they're 1
@@ -684,14 +687,12 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 #ifndef WITHOUT_CAPSICUM
 		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
 		    CAP_WRITE);
-		if (cap_rights_limit(sc->tty.fd, &rights) == -1 &&
-		    errno != ENOSYS)
+		if (caph_rights_limit(sc->tty.fd, &rights) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
-		if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 &&
-		    errno != ENOSYS)
+		if (caph_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
 		if (!uart_stdio) {
-			if (caph_limit_stdin() == -1 && errno != ENOSYS)
+			if (caph_limit_stdin() == -1)
 				errx(EX_OSERR,
 				    "Unable to apply rights for sandbox");
 		}

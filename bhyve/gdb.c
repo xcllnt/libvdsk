@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2017-2018 John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/gdb.c 333140 2018-05-01 15:17:46Z jhb $");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/gdb.c 344855 2019-03-06 22:11:45Z jhb $");
 
 #include <sys/param.h>
 #ifndef WITHOUT_CAPSICUM
@@ -1252,9 +1251,9 @@ limit_gdb_socket(int s)
 
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE,
 	    CAP_SETSOCKOPT, CAP_IOCTL);
-	if (cap_rights_limit(s, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(s, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_ioctls_limit(s, ioctls, nitems(ioctls)) == -1 && errno != ENOSYS)
+	if (caph_ioctls_limit(s, ioctls, nitems(ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 }
 #endif
