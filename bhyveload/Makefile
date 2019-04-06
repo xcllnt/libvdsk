@@ -1,14 +1,17 @@
-# $FreeBSD: user/marcel/libvdsk/bhyveload/Makefile 286979 2015-08-21 05:02:26Z marcel $
+# $FreeBSD: head/usr.sbin/bhyveload/Makefile 325834 2017-11-14 23:02:19Z imp $
+
+LDADD=	-lvmmapi -lvdsk
+SRCTOP=	/usr/src
 
 PROG=	bhyveload
 SRCS=	bhyveload.c
 MAN=	bhyveload.8
+PACKAGE=	bhyve
 
-DPADD+=	${LIBVDSK} ${LIBVMMAPI}
-LDADD+=	-lvdsk -lvmmapi
+LIBADD=	vmmapi vdsk
 
 WARNS?=	3
 
-CFLAGS+=-I/sys/boot/userboot
+CFLAGS+=-I${SRCTOP}/stand/userboot
 
 .include <bsd.prog.mk>
