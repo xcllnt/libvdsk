@@ -322,7 +322,7 @@ cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
 		*(u_int *)data = vdsk_sector_size(disk[unit]);
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = vdsk_capacity(disk[unit]);
+		*(off_t *)data = vdsk_media_size(disk[unit]);
 		break;
 	default:
 		return (ENOTTY);

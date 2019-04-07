@@ -68,10 +68,12 @@ struct vdsk {
 	int	fflags;
 	char	*filename;
 	struct stat fsbuf;
-	off_t	capacity;
+	off_t	media_size;
 	int	sector_size;
 	int	stripe_size;
 	int	stripe_offset;
+	int	options;
+#define	VDSK_DOES_TRIM		1
 } __attribute__((aligned(16)));
 
 

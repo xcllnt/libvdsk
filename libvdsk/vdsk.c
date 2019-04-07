@@ -134,13 +134,13 @@ vdsk_open(const char *path, int flags, size_t size)
 
 		if (vdsk_is_dev(vdsk)) {
 			if (ioctl(vdsk->fd, DIOCGMEDIASIZE,
-			    &vdsk->capacity) < 0)
+			    &vdsk->media_size) < 0)
 				break;
 			if (ioctl(vdsk->fd, DIOCGSECTORSIZE,
 			    &vdsk->sector_size) < 0)
 				break;
 		} else {
-			vdsk->capacity = vdsk->fsbuf.st_size;
+			vdsk->media_size = vdsk->fsbuf.st_size;
 			vdsk->sector_size = DEV_BSIZE;
 		}
 
@@ -188,12 +188,28 @@ vdsk_close(vdskctx ctx)
 	return (0);
 }
 
-off_t
-vdsk_capacity(vdskctx ctx)
+int
+vdsk_fd(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
-	return (vdsk->capacity);
+	return (vdsk->fd);
+}
+
+int
+vdsk_does_trim(vdskctx ctx)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return ((vdsk->options & VDSK_DOES_TRIM) ? 1 : 0);
+}
+
+off_t
+vdsk_media_size(vdskctx ctx)
+{
+	struct vdsk *vdsk = vdsk_deref(ctx);
+
+	return (vdsk->media_size);
 }
 
 int

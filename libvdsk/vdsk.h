@@ -38,7 +38,11 @@ typedef void *vdskctx;
 vdskctx	vdsk_open(const char *, int, size_t);
 int	vdsk_close(vdskctx);
 
-off_t	vdsk_capacity(vdskctx);
+int	vdsk_fd(vdskctx);
+
+int	vdsk_does_trim(vdskctx);
+
+off_t	vdsk_media_size(vdskctx);
 int	vdsk_sector_size(vdskctx);
 
 int	vdsk_stripe_size(vdskctx);

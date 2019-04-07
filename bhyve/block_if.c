@@ -32,6 +32,9 @@
 __FBSDID("$FreeBSD: head/usr.sbin/bhyve/block_if.c 344159 2019-02-15 16:20:21Z rgrimes $");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/queue.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -39,6 +42,9 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/block_if.c 344159 2019-02-15 16:20:21Z r
 #include <sys/disk.h>
 
 #include <assert.h>
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -90,6 +96,10 @@ struct blockif_ctxt {
 	int			bc_magic;
 	int			bc_candelete;
 	int			bc_rdonly;
+	off_t			bc_size;
+	int			bc_sectsz;
+	int			bc_psectsz;
+	int			bc_psectoff;
 	int			bc_closing;
 	pthread_t		bc_btid[BLOCKIF_NUMTHR];
 	pthread_mutex_t		bc_mtx;
@@ -310,12 +320,17 @@ blockif_open(const char *optstr, const char *ident)
 	char tname[MAXCOMLEN + 1];
 	char *nopt, *xopts, *cp;
 	struct blockif_ctxt *bc;
-	int extra, fd, i;
-	int nocache, sync, ro, candelete, ssopt, pssopt;
+	off_t psectsz, psectoff;
+	int extra, i, sectsz;
+	int nocache, sync, ro, ssopt, pssopt;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+#endif
 
 	pthread_once(&blockif_once, blockif_init);
 
-	fd = -1;
+	bc = NULL;
 	ssopt = 0;
 	nocache = 0;
 	sync = 0;
@@ -364,9 +379,56 @@ blockif_open(const char *optstr, const char *ident)
 		goto err;
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
+	    CAP_WRITE);
+	if (ro)
+		cap_rights_clear(&rights, CAP_FSYNC, CAP_WRITE);
+
+	if (caph_rights_limit(vdsk_fd(bc), &rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (caph_ioctls_limit(vdsk_fd(bc), cmds, nitems(cmds)) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+	sectsz = vdsk_sector_size(bc);
+	psectsz = vdsk_stripe_size(bc);
+	psectoff = vdsk_stripe_offset(bc);
+
+	if (ssopt != 0) {
+		if (!powerof2(ssopt) || !powerof2(pssopt) || ssopt < 512 ||
+		    ssopt > pssopt) {
+			fprintf(stderr, "Invalid sector size %d/%d\n",
+			    ssopt, pssopt);
+			goto err;
+		}
+
+		/*
+		 * Some backend drivers (e.g. cd0, ada0) require that the I/O
+		 * size be a multiple of the device's sector size.
+		 *
+		 * Validate that the emulated sector size complies with this
+		 * requirement.
+		 */
+		if (ssopt < sectsz || (ssopt % sectsz) != 0) {
+			fprintf(stderr, "Sector size %d incompatible "
+			    "with underlying device sector size %d\n",
+			    ssopt, sectsz);
+			goto err;
+		}
+
+		sectsz = ssopt;
+		psectsz = pssopt;
+		psectoff = 0;
+	}
+
 	bc->bc_magic = BLOCKIF_SIG;
-	bc->bc_candelete = candelete;
+	bc->bc_candelete = vdsk_does_trim(bc);
 	bc->bc_rdonly = ro;
+	bc->bc_size = vdsk_media_size(bc);
+	bc->bc_sectsz = sectsz;
+	bc->bc_psectsz = psectsz;
+	bc->bc_psectoff = psectoff;
 	pthread_mutex_init(&bc->bc_mtx, NULL);
 	pthread_cond_init(&bc->bc_cond, NULL);
 	TAILQ_INIT(&bc->bc_freeq);
@@ -385,8 +447,9 @@ blockif_open(const char *optstr, const char *ident)
 
 	return (bc);
 err:
-	if (fd >= 0)
-		close(fd);
+	if (bc != NULL)
+		vdsk_close(bc);
+	free(nopt);
 	return (NULL);
 }
 
@@ -571,7 +634,7 @@ blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s)
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
-	sectors = vdsk_capacity(bc) / vdsk_sector_size(bc);
+	sectors = bc->bc_size / bc->bc_sectsz;
 
 	/* Clamp the size to the largest possible with CHS */
 	if (sectors > 65535UL*16*255)
@@ -614,7 +677,7 @@ blockif_size(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (vdsk_capacity(bc));
+	return (bc->bc_size);
 }
 
 int
@@ -622,7 +685,7 @@ blockif_sectsz(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (vdsk_sector_size(bc));
+	return (bc->bc_sectsz);
 }
 
 void
@@ -630,8 +693,8 @@ blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	*size = vdsk_stripe_size(bc);
-	*off = vdsk_stripe_offset(bc);
+	*size = bc->bc_psectsz;
+	*off = bc->bc_psectoff;
 }
 
 int
