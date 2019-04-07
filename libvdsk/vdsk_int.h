@@ -74,6 +74,7 @@ struct vdsk {
 	int	stripe_offset;
 	int	options;
 #define	VDSK_DOES_TRIM		1
+#define	VDSK_IS_GEOM		2
 } __attribute__((aligned(16)));
 
 

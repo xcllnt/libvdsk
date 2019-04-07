@@ -104,6 +104,7 @@ vdsk_open(const char *path, int flags, size_t size)
 {
 	vdskctx ctx;
 	struct vdsk *vdsk;
+	struct diocgattr_arg attr;
 	int lck;
 
 	ctx = NULL;
@@ -133,15 +134,44 @@ vdsk_open(const char *path, int flags, size_t size)
 			break;
 
 		if (vdsk_is_dev(vdsk)) {
+			/*
+			 * Get required media & sector size information.
+			 */
 			if (ioctl(vdsk->fd, DIOCGMEDIASIZE,
 			    &vdsk->media_size) < 0)
 				break;
 			if (ioctl(vdsk->fd, DIOCGSECTORSIZE,
 			    &vdsk->sector_size) < 0)
 				break;
+			/*
+			 * Get optional stripe information
+			 */
+			if (ioctl(vdsk->fd, DIOCGSTRIPESIZE,
+			    &vdsk->stripe_size) < 0)
+				vdsk->stripe_size = 0;
+			if (vdsk->stripe_size > 0 && ioctl(vdsk->fd,
+			    DIOCGSTRIPEOFFSET, &vdsk->stripe_offset) < 0)
+				vdsk->stripe_offset = 0;
+			/*
+			 * Get optional GEOM attributes.
+			 */
+			strlcpy(attr.name, "GEOM::candelete",
+			    sizeof(attr.name));
+			attr.len = sizeof(attr.value.i);
+			if (ioctl(vdsk->fd, DIOCGATTR, &attr) == 0) {
+				if (attr.value.i)
+					vdsk->options |= VDSK_DOES_TRIM;
+				/* Distinguish between ZFS and GEOM. */
+				strlcpy(attr.name, "GEOM::ident",
+				    sizeof(attr.name));
+				attr.len = sizeof(attr.value.str);
+				if (ioctl(vdsk->fd, DIOCGATTR, &attr) == 0)
+					vdsk->options |= VDSK_IS_GEOM;
+			}
 		} else {
 			vdsk->media_size = vdsk->fsbuf.st_size;
 			vdsk->sector_size = DEV_BSIZE;
+			vdsk->stripe_size = vdsk->fsbuf.st_blksize;
 		}
 
 		vdsk->fmt = vdsk_probe(vdsk);
@@ -235,7 +265,6 @@ vdsk_stripe_offset(vdskctx ctx)
 
 	return (vdsk->stripe_offset);
 }
-                
 
 ssize_t
 vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
