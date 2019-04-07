@@ -64,6 +64,7 @@ SET_DECLARE(libvdsk_formats, struct vdsk_format);
  */
 struct vdsk {
 	struct vdsk_format *fmt;
+	void	*fmt_data;
 	int	fd;
 	int	fflags;
 	char	*filename;

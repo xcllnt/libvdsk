@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/raw.c 286996 2015-08-21 15:20:01
 
 #include "vdsk_int.h"
 
+static ssize_t raw_geom_read(struct vdsk *, const struct iovec *, int, off_t);
+static ssize_t raw_geom_write(struct vdsk *, const struct iovec *, int, off_t);
+
 static int
 raw_probe(struct vdsk *vdsk __unused)
 {
@@ -49,16 +52,30 @@ raw_probe(struct vdsk *vdsk __unused)
 }
 
 static int
-raw_open(struct vdsk *vdsk __unused)
+raw_open(struct vdsk *vdsk)
 {
 
+	/*
+	 * Handle scatter/gather problems when the device is a GEOM
+	 * device.  I/O must always be a multiple of the sector
+	 * size, which is not guaranteed when we give the iovec to
+	 * the kernel to work on.  This seems to be due to how
+	 * physio() works.
+	 */
+	if (vdsk->options & VDSK_IS_GEOM) {
+		vdsk->fmt_data = malloc(vdsk->sector_size);
+		if (vdsk->fmt_data == NULL)
+			return (ENOMEM);
+	}
 	return (0);
 }
 
 static int
-raw_close(struct vdsk *vdsk __unused)
+raw_close(struct vdsk *vdsk)
 {
 
+	if (vdsk->fmt_data != NULL)
+		free(vdsk->fmt_data);
 	return (0);
 }
 
@@ -85,7 +102,10 @@ raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	ssize_t res;
 
-	res = preadv(vdsk->fd, iov, iovcnt, offset);
+	if ((vdsk->options & VDSK_IS_GEOM) && iovcnt > 1)
+		res = raw_geom_read(vdsk, iov, iovcnt, offset);
+	else
+		res = preadv(vdsk->fd, iov, iovcnt, offset);
 	return (res);
 }
 
@@ -94,7 +114,10 @@ raw_writev(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	ssize_t res;
 
-	res = pwritev(vdsk->fd, iov, iovcnt, offset);
+	if ((vdsk->options & VDSK_IS_GEOM) && iovcnt > 1)
+		res = raw_geom_write(vdsk, iov, iovcnt, offset);
+	else
+		res = pwritev(vdsk->fd, iov, iovcnt, offset);
 	return (res);
 }
 
@@ -131,6 +154,129 @@ raw_flush(struct vdsk *vdsk)
 			error = errno;
 	}
 	return (error);
+}
+
+static ssize_t
+raw_geom_read(struct vdsk *vdsk, const struct iovec *iov, int iovcnt,
+    off_t offset)
+{
+	char	*iobuf, *buf;
+	ssize_t	nbytes, res;
+	size_t	iosz, iov_ofs;
+	int	iovidx;
+
+	buf = vdsk->fmt_data;
+	iovidx = 0;
+	iosz = 0;
+	nbytes = 0;
+	while (iovidx < iovcnt) {
+		iobuf = iov[iovidx].iov_base;
+		/*
+		 * NOTE: iosz and iov_ofs are carried over from the previous
+		 * iteration.  This to handle partial sector reads.
+		 */
+		if (iosz > 0) {
+			memcpy(iobuf, buf + iov_ofs, iosz);
+			nbytes += iosz;
+		}
+		iov_ofs = iosz;
+		while (iov_ofs < iov[iovidx].iov_len) {
+			iosz = MIN(iov[iovidx].iov_len - iov_ofs, MAXPHYS);
+			if (iosz < (size_t)vdsk->sector_size) {
+				res = pread(vdsk->fd, buf, vdsk->sector_size,
+				    offset + nbytes);
+				if (res == -1)
+					goto errout;
+				if (res != vdsk->sector_size) {
+					errno = EIO;
+					goto errout;
+				}
+				memcpy(iobuf + iov_ofs, buf, iosz);
+				nbytes += iosz;
+				iov_ofs = iosz;
+				iosz = vdsk->sector_size - iosz;
+				break;
+			}
+			iosz -= (iosz % vdsk->sector_size);
+			res = pread(vdsk->fd, iobuf + iov_ofs, iosz,
+			    offset + nbytes);
+			if (res == -1)
+				goto errout;
+			if (res == 0) {
+				errno = EIO;
+				goto errout;
+			}
+			nbytes += res;
+			iov_ofs += res;
+			iosz = 0;
+		}
+		iovidx++;
+	}
+	return (nbytes);
+
+ errout:
+	return ((nbytes > 0) ? nbytes : -1);
+}
+
+static ssize_t
+raw_geom_write(struct vdsk *vdsk, const struct iovec *iov, int iovcnt,
+    off_t offset)
+{
+	char	*iobuf, *buf;
+	ssize_t	nbytes, res;
+	size_t	iosz, iov_ofs;
+	int	iovidx;
+
+	buf = vdsk->fmt_data;
+	iovidx = 0;
+	iosz = 0;
+	nbytes = 0;
+	while (iovidx < iovcnt) {
+		iobuf = iov[iovidx].iov_base;
+		/*
+		 * NOTE: iosz and iov_ofs are carried over from the previous
+		 * iteration.  This to handle partial sector writes.
+		 */
+		if (iosz > 0) {
+			memcpy(buf + iov_ofs, iobuf, iosz);
+			res = pwrite(vdsk->fd, buf, vdsk->sector_size,
+			    offset + nbytes);
+			if (res == -1)
+				goto errout;
+			if (res != vdsk->sector_size) {
+				errno = EIO;
+				goto errout;
+			}
+			nbytes += vdsk->sector_size;
+		}
+		iov_ofs = iosz;
+		while (iov_ofs < iov[iovidx].iov_len) {
+			iosz = MIN(iov[iovidx].iov_len - iov_ofs, MAXPHYS);
+			if (iosz < (size_t)vdsk->sector_size) {
+				memcpy(buf, iobuf + iov_ofs, iosz);
+				iov_ofs = iosz;
+				iosz = vdsk->sector_size - iosz;
+				break;
+			}
+			iosz -= (iosz % vdsk->sector_size);
+			res = pwrite(vdsk->fd, iobuf + iov_ofs, iosz,
+			    offset + nbytes);
+			if (res == -1)
+				goto errout;
+			if (res == 0) {
+				errno = EIO;
+				goto errout;
+			}
+			nbytes += res;
+			iov_ofs += res;
+			iosz = 0;
+		}
+		iovidx++;
+	}
+	return (nbytes);
+
+ errout:
+	return ((nbytes > 0) ? nbytes : -1);
 }
 
 static struct vdsk_format raw_format = {
