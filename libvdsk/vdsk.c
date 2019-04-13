@@ -94,8 +94,6 @@ vdsk_probe(struct vdsk *vdsk)
 	if (fmt == NULL)
 		errno = EFTYPE;
 
-	printf("===> Format name: %s\n", fmt->name);
-	printf("===> Format Description: %s\n", fmt->description);
 	return (fmt);
 }
 
