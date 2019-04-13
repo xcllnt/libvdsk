@@ -218,7 +218,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 	case BOP_READ:
 		len = vdsk_readv(bc, br->br_iov, br->br_iovcnt, br->br_offset);
 		err = (len < 0) ? errno : 0;
-		if (err != 0)
+		if (err == 0)
 			br->br_resid -= len;
 		break;
 	case BOP_WRITE:
@@ -229,7 +229,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 		len = vdsk_writev(bc, br->br_iov, br->br_iovcnt,
 		    br->br_offset);
 		err = (len < 0) ? errno : 0;
-		if (err != 0)
+		if (err == 0)
 			br->br_resid -= len;
 		break;
 	case BOP_FLUSH:
