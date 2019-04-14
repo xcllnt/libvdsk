@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2019 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,16 +29,32 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/vdsk.c 286996 2015-08-21 15:20:0
 
 #include <sys/disk.h>
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vdsk.h>
 
 #include "vdsk_int.h"
+
+static int vdsk_options;
+
+static __attribute__((constructor)) void
+vdsk_initialize(void)
+{
+	char *env;
+
+	vdsk_options = 0;
+
+	/*
+	 * Check for LIBVDSK_TRACE in the environment.  If set, we'll
+	 * use syslog(3) to log trace messages.
+	 */
+	env = getenv("LIBVDSK_TRACE");
+	if (env != NULL)
+		vdsk_options |= VDSK_TRACE;
+}
 
 static struct vdsk *
 vdsk_deref(vdskctx ctx)
@@ -105,6 +121,12 @@ vdsk_open(const char *path, int flags, size_t size)
 	struct diocgattr_arg attr;
 	int lck;
 
+	if (vdsk_options & VDSK_TRACE)
+		vdsk_trace_enter(__func__, 3,
+		    "path", "%s", path,
+		    "flags", "%d", flags,
+		    "size", "%zu", size);
+
 	ctx = NULL;
 
 	do {
@@ -112,6 +134,9 @@ vdsk_open(const char *path, int flags, size_t size)
 		vdsk = calloc(1, size);
 		if (vdsk == NULL)
 			break;
+
+		/* Set system-wide options */
+		vdsk->options = vdsk_options;
 
 		vdsk->fflags = flags + 1;
 		if ((vdsk->fflags & ~(O_ACCMODE | O_DIRECT | O_SYNC)) != 0) {
@@ -200,6 +225,18 @@ vdsk_open(const char *path, int flags, size_t size)
 		}
 	}
 
+	if (vdsk_options & VDSK_TRACE) {
+		if (ctx != NULL)
+			vdsk_trace_leave(__func__, 4,
+			    "ctx", "%p", ctx,
+			    "format", "%s", vdsk->fmt->name,
+			    "options", "0x%08x", vdsk->options,
+			    "st_mode", "0%06o", vdsk->fsbuf.st_mode);
+		else
+			vdsk_trace_leave(__func__, 2,
+			    "ctx", "%p", ctx,
+			    "errno", "%d", errno);
+	}
 	return (ctx);
 }
 

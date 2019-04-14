@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2019 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,9 @@
 #define	__VDSK_INT_H__
 
 #include <sys/linker_set.h>
+#include <sys/stat.h>
+#include <stdarg.h>
+#include <vdsk.h>
 
 struct vdsk;
 
@@ -76,6 +79,7 @@ struct vdsk {
 	int	options;
 #define	VDSK_DOES_TRIM		1
 #define	VDSK_IS_GEOM		2
+#define	VDSK_TRACE		4
 } __attribute__((aligned(16)));
 
 
@@ -84,6 +88,31 @@ vdsk_is_dev(struct vdsk *vdsk)
 {
 
 	return ((S_ISCHR(vdsk->fsbuf.st_mode)) ? 1 : 0);
+}
+
+void vdsk_trace(const char *, const char *, int, const char *, const char *,
+    va_list);
+
+static inline void
+vdsk_trace_enter(const char *func, int count, const char *arg1,
+    const char *fmt1, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt1);
+	vdsk_trace("ENTER", func, count, arg1, fmt1, ap);
+	va_end(ap);
+}
+
+static inline void
+vdsk_trace_leave(const char *func, int count, const char *arg1,
+    const char *fmt1, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt1);
+	vdsk_trace("LEAVE", func, count, arg1, fmt1, ap);
+	va_end(ap);
 }
 
 #endif /* __VDSK_INT_H__ */

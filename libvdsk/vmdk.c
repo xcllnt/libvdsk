@@ -30,14 +30,12 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/vmdk.c 286996 2015-08-21 15:20:0
 #include <sys/disk.h>
 #include <sys/endian.h>
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vdsk.h>
 
 #include "vdsk_int.h"
 

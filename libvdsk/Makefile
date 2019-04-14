@@ -3,7 +3,7 @@
 LIB=	vdsk
 SHLIB_MAJOR= 0
 
-SRCS=	vdsk.c
+SRCS=	vdsk.c vdsk_trace.c
 INCS=	vdsk.h
 
 # List of formats to support
