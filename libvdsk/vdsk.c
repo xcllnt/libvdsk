@@ -228,13 +228,12 @@ vdsk_open(const char *path, int flags, size_t size)
 	if (vdsk_options & VDSK_TRACE) {
 		if (ctx != NULL)
 			vdsk_trace_leave(__func__, 4,
-			    "ctx", "%p", ctx,
+			    "vdsk", "%p", vdsk,
 			    "format", "%s", vdsk->fmt->name,
 			    "options", "0x%08x", vdsk->options,
 			    "st_mode", "0%06o", vdsk->fsbuf.st_mode);
 		else
-			vdsk_trace_leave(__func__, 2,
-			    "ctx", "%p", ctx,
+			vdsk_trace_leave(__func__, 1,
 			    "errno", "%d", errno);
 	}
 	return (ctx);
@@ -245,10 +244,21 @@ vdsk_close(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 
+	if (vdsk->options & VDSK_TRACE)
+		vdsk_trace_enter(__func__, 1,
+		    "vdsk", "%p", vdsk);
+
 	vdsk->fmt->close(vdsk);
 	flock(vdsk->fd, LOCK_UN);
 	close(vdsk->fd);
+
 	free(vdsk->filename);
+
+	/* Last dereference of vdsk before we free the memory. */
+	if (vdsk->options & VDSK_TRACE)
+		vdsk_trace_leave(__func__, 1,
+		    "ret", "%d", 0);
+
 	free(vdsk);
 	return (0);
 }
@@ -313,8 +323,11 @@ ssize_t
 vdsk_read(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	struct iovec iov;
 
-	return (vdsk->fmt->read(vdsk, buffer, nbytes, offset));
+	iov.iov_base = buffer;
+	iov.iov_len = nbytes;
+	return (vdsk->fmt->readv(vdsk, &iov, 1, offset));
 }
 
 ssize_t
@@ -331,8 +344,13 @@ ssize_t
 vdsk_write(vdskctx ctx, const void *buffer, size_t nbytes, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	struct iovec iov;
 
-	return (vdsk->fmt->write(vdsk, buffer, nbytes, offset));
+	if ((vdsk->fflags & FWRITE) == 0)
+		return (EROFS);
+	iov.iov_base = __DECONST(void *, buffer);
+	iov.iov_len = nbytes;
+	return (vdsk->fmt->writev(vdsk, &iov, 1, offset));
 }
 
 int
@@ -354,4 +372,3 @@ vdsk_flush(vdskctx ctx)
 		return (0);
 	return (vdsk->fmt->flush(vdsk));
 }
-

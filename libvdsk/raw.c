@@ -78,24 +78,6 @@ raw_close(struct vdsk *vdsk)
 }
 
 static ssize_t
-raw_read(struct vdsk *vdsk, void *buf, size_t nbytes, off_t offset)
-{
-	ssize_t res;
-
-	res = pread(vdsk->fd, buf, nbytes, offset);
-	return (res);
-}
-
-static ssize_t
-raw_write(struct vdsk *vdsk, const void *buf, size_t nbytes, off_t offset)
-{
-	ssize_t res;
-
-	res = pwrite(vdsk->fd, buf, nbytes, offset);
-	return (res);
-}
-
-static ssize_t
 raw_readv(struct vdsk *vdsk, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	ssize_t res;
@@ -284,8 +266,6 @@ static struct vdsk_format raw_format = {
 	.probe = raw_probe,
 	.open = raw_open,
 	.close = raw_close,
-	.read = raw_read,
-	.write = raw_write,
 	.readv = raw_readv,
 	.writev = raw_writev,
 	.trim = raw_trim,

@@ -115,24 +115,6 @@ qcow_close(struct vdsk *vdsk __unused)
 }
 
 static ssize_t
-qcow_read(struct vdsk *vdsk __unused, void *buf __unused,
-    size_t nbytes __unused, off_t offset __unused)
-{
-
-	errno = ENOSYS;
-	return (-1);
-}
-
-static ssize_t
-qcow_write(struct vdsk *vdsk __unused, const void *buf __unused,
-    size_t nbytes __unused, off_t offset __unused)
-{
-
-	errno = ENOSYS;
-	return (-1);
-}
-
-static ssize_t
 qcow_readv(struct vdsk *vdsk __unused, const struct iovec *iov __unused,
     int iovcnt __unused, off_t offset __unused)
 {
@@ -172,8 +154,6 @@ static struct vdsk_format qcow_format = {
 	.probe = qcow_probe,
 	.open = qcow_open,
 	.close = qcow_close,
-	.read = qcow_read,
-	.write = qcow_write,
 	.readv = qcow_readv,
 	.writev = qcow_writev,
 	.trim = qcow_trim,
