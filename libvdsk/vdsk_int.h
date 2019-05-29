@@ -92,9 +92,8 @@ struct qcdsk {
 	struct vdsk *base;
 
 	uint64_t	*l1;
-	char		*scratch;
 	off_t		end;
-	uint32_t	clustersz;
+	off_t		clustersz;
 	off_t		disksz; /* In bytes */
 	uint32_t	cryptmethod;
 
@@ -105,7 +104,7 @@ struct qcdsk {
 	off_t		l2off;
 
 	off_t		refoff;
-	uint32_t	refsz;
+	off_t		refsz;
 
 	uint32_t	nsnap;
 	off_t		snapoff;
