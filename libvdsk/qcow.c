@@ -282,6 +282,11 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 	DPRINTF("sum: %ld\n\r", offset + rem);
 	DPRINTF("\n\r=================================\n\r");
 
+	if (offset < 0) {
+		printf("Exit with off < 0; off = %ld\n\r", offset);
+		pthread_rwlock_unlock(&disk->lock);
+		return -1;
+	}
 	while (rem > 0) {
 		for (d = vdsk; d; d = d->aux_data.qcow.base) {
 			if ((phys_off = xlate(d, offset, NULL)) > 0) {
@@ -449,8 +454,9 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 	DPRINTF("sum: %ld\n\r", offset + rem);
 	DPRINTF("\n\r=================================\n\r");
 
-	if (off < 0) {
-		printf("Exit with off < 0; off = %lx\n\r", off);
+	if (offset < 0) {
+		printf("Exit with off < 0; off = %lx\n\r", offset);
+		pthread_rwlock_unlock(&disk->lock);
 		return -1;
 	}
 	while (rem > 0) {
