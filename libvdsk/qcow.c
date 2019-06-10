@@ -276,6 +276,9 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 	disk = &vdsk->aux_data.qcow;
 	off = offset;
 	rem = 0;
+
+	pthread_rwlock_rdlock(&disk->lock);
+
 	for (i = 0; i < iovcnt; i++) {
 		rem += iov[i].iov_len;
 	}
@@ -370,6 +373,7 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 					printf("====== qcow_read getting 0 ======\r\n");
 					printf("Oh dear, something went wrong with read()! %d %s\r\n", errno, strerror(errno));
 					printf("====== qcow_read pread ====== read %lx ioc %lu sz %lx iov_len  %lx total %lx iov_rem %lx\r\n", read, ioc, sz, iov[ioc].iov_len, total, iov_rem);
+					pthread_rwlock_unlock(&disk->lock);
 					return (-1);
 				}
 
@@ -387,6 +391,7 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 	}
 	//printf("====== qcow_read finished rem: %ld ======\r\n", rem);
 
+	pthread_rwlock_unlock(&disk->lock);
 	return rem;
 }
 
@@ -401,7 +406,6 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 
 	if (inplace)
 		*inplace = 0;
-	pthread_rwlock_rdlock(&disk->lock);
 	if (off < 0)
 		goto err;
 
@@ -417,7 +421,6 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 	l2tab &= ~QCOW2_INPLACE;
 	//printf("====== xlate got l2 ======\r\n");
 	if (l2tab == 0) {
-		pthread_rwlock_unlock(&disk->lock);
 		return 0;
 	}
 	l2off = (off / disk->clustersz) % l2sz;
@@ -431,7 +434,6 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 		printf("%s: compressed clusters unsupported", __func__);
 		exit(-1);
 	}
-	pthread_rwlock_unlock(&disk->lock);
 	clusteroff = 0;
 	cluster &= ~QCOW2_INPLACE;
 	printf("====== xlate got cluster %lx ======\r\n", cluster);
@@ -441,7 +443,6 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 	printf("====== xlate got sum %lx ======\r\n", cluster+clusteroff);
 	return cluster + clusteroff;
 err:
-	pthread_rwlock_unlock(&disk->lock);
 	return -1;
 }
 
@@ -464,6 +465,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 	disk = &vdsk->aux_data.qcow;
 	inplace = 1;
 	off = offset;
+	pthread_rwlock_wrlock(&disk->lock);
 
 	rem = 0;
 	for (i = 0; i < iovcnt; i++) {
@@ -505,6 +507,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		printf("====== qcow_write phys_off %lx ======\r\n", phys_off);
 		if (phys_off == -1) {
 			printf("Exit with phys_off == -1; phys_off = %lx\n\r", phys_off);
+			pthread_rwlock_unlock(&disk->lock);
 			return -1;
 		}
 
@@ -517,11 +520,13 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 			phys_off = mkcluster(vdsk, d, off, phys_off);
 		if (phys_off == -1) {
 			printf("Exit with after mk_cluster phys_off == -1; phys_off = %lx\n\r", phys_off);
+			pthread_rwlock_unlock(&disk->lock);
 			return -1;
 		}
 		printf("====== qcow_write fill 0 ======\r\n");
 		if (phys_off < disk->clustersz) {
 			printf("%s: writing reserved cluster\r\n", __func__);
+			pthread_rwlock_unlock(&disk->lock);
 			return (EFAULT);
 		}
 
@@ -542,6 +547,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 				printf("Oh dear, something went wrong with wrote()! %d %s\r\n", errno, strerror(errno));
 				printf("====== qcow_write pwrite ====== write %lx sz %lx iov_len  %lx total %lx iov_rem %lx\r\n", wrote, sz, iov[ioc].iov_len, total, iov_rem);
 				printf("====== qcow_write pwrite %x offset %lx ioc %lu ====== \r\n", ((char *)iov->iov_base)[ioc], off + total, ioc);
+				pthread_rwlock_unlock(&disk->lock);
 				return (-1);
 			}
 
@@ -566,6 +572,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 	}
 	printf("====== qcow_write finished rem: %lx ======\r\n", rem);
+	pthread_rwlock_unlock(&disk->lock);
 	return rem;
 	return (-1);
 }
@@ -581,8 +588,6 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	disk = &vdsk->aux_data.qcow;
 	base = &vdsk_base->aux_data.qcow;
 
-	pthread_rwlock_wrlock(&disk->lock);
-
 	cluster = -1;
 	fd = vdsk->fd;
 	/* L1 entries always exist */
@@ -590,7 +595,6 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	l1off = off / (disk->clustersz * l2sz);
 	if (l1off >= disk->l1sz) {
 		printf("l1 offset outside disk");
-		pthread_rwlock_unlock(&disk->lock);
 		exit(-1);
 	}
 
@@ -609,7 +613,6 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 		printf("Oh dear, something went wrong with read()! %d %s\r\n", errno, strerror(errno));
 		errno = 0;
 		if (ftruncate(vdsk->fd, disk->end) == -1) {
-			pthread_rwlock_unlock(&disk->lock);
 			printf("%s: ftruncate failed\r\n", __func__);
 			printf("Oh dear, something went wrong with read()! %d %s\r\n", errno, strerror(errno));
 			return -1;
@@ -629,7 +632,6 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 
 	/* Grow the disk */
 	if (ftruncate(vdsk->fd, disk->end + disk->clustersz) < 0) {
-		pthread_rwlock_unlock(&disk->lock);
 		printf("%s: could not grow disk", __func__);
 		return -1;
 	}
@@ -639,20 +641,17 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	disk->end += disk->clustersz;
 	buf = htobe64(cluster | QCOW2_INPLACE);
 	if (pwrite(vdsk->fd, &buf, sizeof(buf), l2tab + l2off * 8) != 8) {
-		pthread_rwlock_unlock(&disk->lock);
 		printf("%s: could not write cluster", __func__);
 		exit(-1);
 	}
 
 	buf = htobe64(disk->l1[l1off]);
 	if (pwrite(vdsk->fd, &buf, sizeof(buf), disk->l1off + 8 * l1off) != 8) {
-		pthread_rwlock_unlock(&disk->lock);
 		printf("%s: could not write l1", __func__);
 		exit(-1);
 	}
 	inc_refs(vdsk, cluster, 1);
 
-	pthread_rwlock_unlock(&disk->lock);
 	clusteroff = off % disk->clustersz;
 	if (cluster + clusteroff < disk->clustersz) {
 		printf("write would clobber header");
