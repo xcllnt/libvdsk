@@ -710,11 +710,17 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 }
 
 static int
-qcow_trim(struct vdsk *vdsk __unused, off_t offset __unused,
-    size_t length __unused)
+qcow_trim(struct vdsk *vdsk, off_t offset, size_t length)
 {
+	int error;
 
-	return 0;
+	error = 0;
+	if (vdsk_is_dev(vdsk)) {
+		printf("%s: You should't be here\r\n", __func__);
+	} else {
+		DPRINTF("%s: You should be here \r\n", __func__);
+	}
+	return (error);
 }
 
 static int
