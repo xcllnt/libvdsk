@@ -718,16 +718,23 @@ qcow_trim(struct vdsk *vdsk __unused, off_t offset __unused,
 }
 
 static int
-qcow_flush(struct vdsk *vdsk __unused)
+qcow_flush(struct vdsk *vdsk)
 {
 	int error;
+	struct qcdsk *disk = &vdsk->aux_data.qcow;
 
 	error = 0;
 	if (vdsk_is_dev(vdsk)) {
 		printf("%s: You should't be here\r\n", __func__);
 	} else {
-		if (fsync(vdsk->fd) == -1)
+		if (disk->base)
+			qcow_flush(disk->base);
+		if (fsync(vdsk->fd) == -1) {
 			error = errno;
+			printf("%s: (%d) %s\r\n", __func__, errno,
+				strerror(errno));
+		}
+		DPRINTF("%s: You should be here\r\n", __func__);
 	}
 	return (error);
 }
