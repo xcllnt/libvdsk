@@ -568,11 +568,17 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 		orig = l2tab & ~QCOW2_INPLACE;
 		l2tab = disk->end;
 		disk->end += disk->clustersz;
-		errno = 0;
-		if (ftruncate(vdsk->fd, disk->end) == -1) {
-			printf("%s: ftruncate failed\r\n", __func__);
-			printf("Oh dear, something went wrong with read()! %d %s\r\n", errno, strerror(errno));
-			return -1;
+		if ((vdsk->fflags & FWRITE) == FWRITE) {
+			if (ftruncate(vdsk->fd, disk->end) == -1) {
+				printf("%s: ftruncate failed\r\n", __func__);
+				printf("%s: (%d) %s\r\n", __func__, errno,
+					strerror(errno));
+				return (-1);
+			}
+		} else {
+			printf("%s: could not grow disk, no WRITE ACCESS\n\r",
+				__func__);
+			return (-1);
 		}
 
 		/*
@@ -588,10 +594,19 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	l2tab &= ~QCOW2_INPLACE;
 
 	/* Grow the disk */
-	if (ftruncate(vdsk->fd, disk->end + disk->clustersz) < 0) {
-		printf("%s: could not grow disk", __func__);
-		return -1;
+	if ((vdsk->fflags & FWRITE) == FWRITE) {
+		if (ftruncate(vdsk->fd, disk->end + disk->clustersz) < 0) {
+			printf("%s: ftruncate failed\r\n", __func__);
+			printf("%s: (%d) %s\r\n", __func__, errno,
+				strerror(errno));
+			return (-1);
+		}
+	} else {
+			printf("%s: could not grow disk, no WRITE ACCESS\n\r",
+				__func__);
+			return (-1);
 	}
+
 	if (src_phys > 0)
 		copy_cluster(vdsk, vdsk_base, disk->end, src_phys);
 	cluster = disk->end;
