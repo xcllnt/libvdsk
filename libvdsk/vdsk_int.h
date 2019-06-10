@@ -174,4 +174,10 @@ vdsk_trace_leave(const char *func, int count, const char *arg1,
 	va_end(ap);
 }
 
+#ifdef DEBUG
+#define DPRINTF(format, arg...) printf(format, ##arg)
+#else
+#define DPRINTF(format, arg...)
+#endif
+
 #endif /* __VDSK_INT_H__ */
