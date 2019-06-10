@@ -140,7 +140,6 @@ qcow_open(struct vdsk *vdsk)
 	qc->refssz = be32toh(header->refsz);
 	qc->headersz = be32toh(header->headersz);
 
-	/* XXX: Need to check more about these bits */
 	if (qc->incompatfeatures & ~(QCOW_DIRTY|QCOW_CORRUPT)) {
 		printf("unsupported features\n");
 		goto err_out;
@@ -253,16 +252,15 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 
 	struct qcdsk *disk;
 	struct vdsk *d;
-	int64_t phys_off, cluster_off, off;
-	int64_t read, end;
-	uint64_t sz, len, ioc, total, iov_rem, rem, to_set;
+	off_t phys_off, read, cluster_off;
+	ssize_t sz, rem, iov_rem, total;
+	uint64_t ioc, to_set;
 	int i;
 
 	iov_rem = 0;
 	read = 0;
-
+	ioc = 0;
 	disk = &vdsk->aux_data.qcow;
-	off = offset;
 	rem = 0;
 
 	pthread_rwlock_rdlock(&disk->lock);
@@ -281,22 +279,17 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 		rem += iov[i].iov_len;
 		DPRINTF("%zu ", iov[i].iov_len);
 	}
-	len = rem;
-	end = off + len;
-	ioc = 0;
-
 	DPRINTF("sum: %ld\n\r", offset + rem);
 	DPRINTF("\n\r=================================\n\r");
 
 	while (rem > 0) {
 		for (d = vdsk; d; d = d->aux_data.qcow.base) {
-			if ((phys_off = xlate(d, off, NULL)) > 0) {
-				//printf("xlate breaks\n\r");
+			if ((phys_off = xlate(d, offset, NULL)) > 0) {
 				break;
 			}
 		}
 
-		cluster_off = off % disk->clustersz;
+		cluster_off = offset % disk->clustersz;
 		sz = disk->clustersz - cluster_off;
 		if (sz > rem)
 			sz = rem;
@@ -310,22 +303,19 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 
 				if (iov_rem) {
 					to_set = MIN(iov_rem, sz - total);
-					memset((char *) iov[ioc].iov_base + (iov[ioc].iov_len - iov_rem), 0,
+					memset((char *) iov[ioc].iov_base +
+						(iov[ioc].iov_len - iov_rem), 0,
 						to_set);
-						//iov_rem);
 					total += to_set;
 					iov_rem -= to_set;
-
 				} else {
-					to_set = MIN(iov[ioc].iov_len, sz - total);
+					to_set = MIN((ssize_t) iov[ioc].iov_len,
+							sz - total);
 					memset(iov[ioc].iov_base, 0,
 						to_set);
 					total += to_set;
 					iov_rem = iov[ioc].iov_len - to_set;
 				}
-
-				//iov_rem = iov[ioc].iov_len - MIN(iov[ioc].iov_len, sz - total);
-				//total += MIN(iov[ioc].iov_len, sz - total);
 
 				if (!iov_rem)
 					ioc++;
@@ -334,15 +324,15 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 		} else {
 			while (total < sz) {
 				if (iov_rem) {
-					read = pread(d->fd, (char *) iov[ioc].iov_base + (iov[ioc].iov_len - iov_rem),
-						//iov_rem,
+					read = pread(d->fd, (char *) iov[ioc].iov_base +
+						(iov[ioc].iov_len - iov_rem),
 						MIN(iov_rem, sz - total),
 						phys_off);
 
 				} else {
 					iov_rem = iov[ioc].iov_len;
 					read = pread(d->fd, iov[ioc].iov_base,
-						MIN(iov[ioc].iov_len, sz - total),
+						MIN(iov[ioc].iov_len, (size_t) sz - total),
 						phys_off);
 				}
 				DPRINTF("%s: read %lx ioc %lu sz %lx iov_len %lx "
@@ -365,7 +355,8 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 					ioc++;
 			}
 		}
-		off += sz;
+
+		offset += sz;
 		rem -= sz;
 	}
 	DPRINTF("%s: finished rem: %lx\r\n", __func__, rem);
@@ -379,6 +370,7 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 	off_t l2sz, l1off, l2tab, l2off, cluster, clusteroff;
 	uint64_t buf;
 	struct qcdsk *disk;
+	int read;
 
 	disk = &vdsk->aux_data.qcow;
 
@@ -400,6 +392,7 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 		DPRINTF("%s: no l2 table found\n\r", __func__);
 		return 0;
 	}
+
 	l2off = (off / disk->clustersz) % l2sz;
 	pread(vdsk->fd, &buf, sizeof(buf), l2tab + l2off * 8);
 	cluster = be64toh(buf);
@@ -426,21 +419,19 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 	struct qcdsk *disk;
 	struct vdsk *d;
-	int64_t phys_off, wrote, cluster_off, off, i;
-	uint64_t sz, rem, len, total, iov_rem, ioc;
-	int inplace;
+	off_t phys_off, wrote, cluster_off;
+	ssize_t sz, rem, iov_rem, total;
+	uint64_t ioc;
+	int inplace, i;
 
 	iov_rem = 0;
 	wrote = 0;
 	ioc = 0;
-
-	d = vdsk;
 	disk = &vdsk->aux_data.qcow;
+	rem = 0;
 	inplace = 1;
-	off = offset;
 	pthread_rwlock_wrlock(&disk->lock);
 
-	rem = 0;
 	DPRINTF("TRYING TO %s\r\n", __func__);
 	DPRINTF("iov->iov_len: %lu\n\r", iov->iov_len);
 	DPRINTF("rem: %ld\n\r", rem);
@@ -455,8 +446,6 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		rem += iov[i].iov_len;
 		DPRINTF("%zu ", iov[i].iov_len);
 	}
-	len = rem;
-
 	DPRINTF("sum: %ld\n\r", offset + rem);
 	DPRINTF("\n\r=================================\n\r");
 
@@ -465,13 +454,13 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		return -1;
 	}
 	while (rem > 0) {
-		cluster_off = off % disk->clustersz;
+		cluster_off = offset % disk->clustersz;
 		sz = disk->clustersz - cluster_off;
 		total = 0;
 		if (sz > rem)
 			sz = rem;
 
-		phys_off = xlate(disk->vdsk, off, &inplace);
+		phys_off = xlate(vdsk, offset, &inplace);
 		DPRINTF("%s: phys_off %lx\r\n",__func__, phys_off);
 		if (phys_off == -1) {
 			printf("Exit with phys_off == -1\n\r");
@@ -481,11 +470,11 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 		if (phys_off == 0) {
 			for (d = disk->base; d; d = d->aux_data.qcow.base)
-				if ((phys_off = xlate(d, off, NULL)) > 0)
+				if ((phys_off = xlate(d, offset, NULL)) > 0)
 					break;
 		}
 		if (!inplace || phys_off == 0)
-			phys_off = mkcluster(vdsk, d, off, phys_off);
+			phys_off = mkcluster(vdsk, d, offset, phys_off);
 		if (phys_off == -1) {
 			printf("Exit after mk_cluster phys_off == -1\n\r");
 			pthread_rwlock_unlock(&disk->lock);
@@ -499,14 +488,15 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 		while (total < sz) {
 			if (iov_rem) {
-				wrote = pwrite(vdsk->fd, (char *)iov[ioc].iov_base + (iov[ioc].iov_len - iov_rem),
+				wrote = pwrite(vdsk->fd, (char *)iov[ioc].iov_base +
+					(iov[ioc].iov_len - iov_rem),
 					MIN(iov_rem, sz - total),
 					phys_off);
 
 			} else {
 				iov_rem = iov[ioc].iov_len;
 				wrote = pwrite(vdsk->fd, iov[ioc].iov_base,
-					MIN(iov[ioc].iov_len, sz - total),
+					MIN(iov[ioc].iov_len, (size_t) sz - total),
 					phys_off);
 			}
 
@@ -526,17 +516,14 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 			if (!iov_rem)
 				ioc++;
-
 		}
 
-		off += sz;
+		offset += sz;
 		rem -= sz;
-
 	}
 	DPRINTF("%s: finished rem: %lx\r\n", __func__, rem);
 	pthread_rwlock_unlock(&disk->lock);
 	return rem;
-	return (-1);
 }
 
 static off_t
@@ -758,4 +745,3 @@ static struct vdsk_format qcow_format = {
 	.flush = qcow_flush,
 };
 FORMAT_DEFINE(qcow_format);
-
