@@ -399,9 +399,15 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 	}
 
 	l2off = (off / disk->clustersz) % l2sz;
-	pread(vdsk->fd, &buf, sizeof(buf), l2tab + l2off * 8);
-	cluster = be64toh(buf);
+	read = pread(vdsk->fd, &buf, sizeof(buf), l2tab + l2off * 8);
+	if (read != sizeof(uint64_t)) {
+		printf("%s: Could not read l2 cluster %d %lu\n\r", __func__,
+			read, sizeof(uint64_t));
+		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
+		goto err;
+	}
 
+	cluster = be64toh(buf);
 	if (inplace)
 		*inplace = !!(cluster & QCOW2_INPLACE);
 	if (cluster & QCOW2_COMPRESSED) {
@@ -621,6 +627,9 @@ copy_cluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t dst, off_t src)
 {
 	char *scratch;
 	struct qcdsk *disk, *base;
+	off_t ret;
+
+	ret = 0;
 
 	disk = &vdsk->aux_data.qcow;
 	base = &vdsk_base->aux_data.qcow;
@@ -629,19 +638,23 @@ copy_cluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t dst, off_t src)
 	if (!scratch) {
 		printf("%s: out of memory\n\r", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return;
 	}
 	src &= ~(disk->clustersz - 1);
 	dst &= ~(disk->clustersz - 1);
-	if (pread(vdsk_base->fd, scratch, disk->clustersz, src) == -1) {
+
+	ret = pread(vdsk_base->fd, scratch, disk->clustersz, src);
+	if (ret == -1) {
 		printf("%s: could not read cluster", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return;
 	}
-	if (pwrite(vdsk->fd, scratch, disk->clustersz, dst) == -1) {
+
+	ret = pwrite(vdsk->fd, scratch, disk->clustersz, dst);
+	if (ret == -1) {
 		printf("%s: could not write cluster", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return;
 	}
 }
 
