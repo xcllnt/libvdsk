@@ -401,7 +401,7 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 		*inplace = !!(cluster & QCOW2_INPLACE);
 	if (cluster & QCOW2_COMPRESSED) {
 		printf("%s: compressed clusters unsupported", __func__);
-		exit(-1);
+		goto err;
 	}
 	clusteroff = 0;
 	cluster &= ~QCOW2_INPLACE;
@@ -544,7 +544,7 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	l1off = off / (disk->clustersz * l2sz);
 	if (l1off >= disk->l1sz) {
 		printf("%s: l1 offset outside disk\n\r", __func__);
-		exit(-1);
+		return (-1);
 	}
 
 	disk->end = (disk->end + disk->clustersz - 1) & ~(disk->clustersz - 1);
@@ -588,14 +588,14 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	if (pwrite(vdsk->fd, &buf, sizeof(buf), l2tab + l2off * 8) != 8) {
 		printf("%s: could not write cluster\r\n", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return (-1);
 	}
 
 	buf = htobe64(disk->l1[l1off]);
 	if (pwrite(vdsk->fd, &buf, sizeof(buf), disk->l1off + 8 * l1off) != 8) {
 		printf("%s: could not write l1\n\r", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return (-1);
 	}
 	inc_refs(vdsk, cluster, 1);
 
@@ -603,7 +603,7 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	if (cluster + clusteroff < disk->clustersz) {
 		printf("%s: write would clobber header\n\r", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return (-1);
 	}
 	return cluster + clusteroff;
 }
@@ -658,7 +658,7 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 	if (pread(vdsk->fd, &buf, sizeof(buf), l1off) != 8) {
 		printf("%s: could not read refs\r\n", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return;
 	}
 
 	l2cluster = be64toh(buf);
@@ -668,13 +668,13 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 		if (ftruncate(vdsk->fd, disk->end) < 0) {
 			printf("%s: failed to allocate ref block\r\n", __func__);
 			printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-			exit(-1);
+			return;
 		}
 		buf = htobe64(l2cluster);
 		if (pwrite(vdsk->fd, &buf, sizeof(buf), l1off) != 8) {
 			printf("%s: failed to write ref block\r\n", __func__);
 			printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-			exit(-1);
+			return;
 		}
 	}
 
@@ -684,7 +684,7 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 		    l2cluster + 2 * l2idx) != 2) {
 			printf("%s: could not read ref cluster\n\r", __func__);
 			printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-			exit(-1);
+			return;
 		}
 		refs = be16toh(refs) + 1;
 	}
@@ -692,7 +692,7 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 	if (pwrite(vdsk->fd, &refs, sizeof(refs), l2cluster + 2 * l2idx) != 2) {
 		printf("%s: could not write ref block\n\r", __func__);
 		printf("%s: (%d) %s\r\n", __func__, errno, strerror(errno));
-		exit(-1);
+		return;
 	}
 }
 
