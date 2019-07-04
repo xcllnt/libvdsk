@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/qcow.c 286996 2015-08-21 15:20:0
 #include <string.h>
 
 #include "vdsk_int.h"
+#include "qcow.h"
 
 /* Flag bits in cluster offsets */
 #define	QCOW_CLSTR_COMPRESSED	(1ULL << 62)

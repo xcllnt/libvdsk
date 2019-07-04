@@ -61,62 +61,6 @@ struct vdsk_format {
 SET_DECLARE(libvdsk_formats, struct vdsk_format);
 #define	FORMAT_DEFINE(nm)	DATA_SET(libvdsk_formats, nm)
 
-/* QCOW HEADER */
-struct qcheader {
-	uint32_t	magic;
-	uint32_t	version;
-	uint64_t	backingoff;
-	uint32_t	backingsz;
-	uint32_t	clustershift;
-	uint64_t	disksz;
-	/* v2 */
-	uint32_t	cryptmethod;
-	uint32_t	l1sz;
-	uint64_t	l1off;
-	uint64_t	refoff;
-	uint32_t	refsz;
-	uint32_t	snapcount;
-	uint64_t	snapsz;
-	/* v3 */
-	uint64_t	incompatfeatures;
-	uint64_t	compatfeatures;
-	uint64_t	autoclearfeatures;
-	uint32_t	reforder; /* Bits = 1 << reforder */
-	uint32_t	headersz;
-} __packed;
-
-struct qcdsk {
-	/* QCOW */
-	struct qcheader header;
-	struct vdsk *vdsk;
-	struct vdsk *base;
-
-	uint64_t	*l1;
-	off_t		end;
-	off_t		clustersz;
-	off_t		disksz; /* In bytes */
-	uint32_t	cryptmethod;
-
-	uint32_t	l1sz;
-	off_t		l1off;
-
-	uint32_t	l2sz;
-	off_t		l2off;
-
-	off_t		refoff;
-	off_t		refsz;
-
-	uint32_t	nsnap;
-	off_t		snapoff;
-
-	/* v3 */
-	uint64_t	incompatfeatures;
-	uint64_t	autoclearfeatures;
-	uint32_t	refssz;
-	uint32_t	headersz;
-	pthread_rwlock_t lock;
-};
-
 /*
  * The internal representation of a "disk".
  */
