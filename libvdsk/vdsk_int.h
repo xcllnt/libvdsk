@@ -49,6 +49,7 @@ struct vdsk_format {
 #define	VDSKFMT_NO_METADATA	0
 #define	VDSKFMT_HAS_FOOTER	4
 #define	VDSKFMT_HAS_HEADER	8
+	size_t	struct_size;
 	int	(*probe)(struct vdsk *);
 	int	(*open)(struct vdsk *);
 	int	(*close)(struct vdsk *);
@@ -76,14 +77,10 @@ struct vdsk {
 	int	stripe_size;
 	int	stripe_offset;
 	int	options;
-	void *aux;
-	union {
-		struct qcdsk qcow;
-	} aux_data;
 #define	VDSK_DOES_TRIM		1
 #define	VDSK_IS_GEOM		2
 #define	VDSK_TRACE		4
-} __attribute__((aligned(16)));
+};
 
 
 static inline int
