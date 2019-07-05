@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/block_if.c 344159 2019-02-15 16:20:21Z r
 #define BLOCKIF_SIG	0xb109b109
 
 #define BLOCKIF_NUMTHR	8
-#define BLOCKIF_MAXREQ	(64 + BLOCKIF_NUMTHR)
+#define BLOCKIF_MAXREQ	(BLOCKIF_RING_MAX + BLOCKIF_NUMTHR)
 
 enum blockop {
 	BOP_READ,
@@ -106,7 +106,7 @@ struct blockif_ctxt {
 	pthread_cond_t		bc_cond;
 
 	/* Request elements and free/pending/busy queues */
-	TAILQ_HEAD(, blockif_elem) bc_freeq;
+	TAILQ_HEAD(, blockif_elem) bc_freeq;       
 	TAILQ_HEAD(, blockif_elem) bc_pendq;
 	TAILQ_HEAD(, blockif_elem) bc_busyq;
 	struct blockif_elem	bc_reqs[BLOCKIF_MAXREQ];
