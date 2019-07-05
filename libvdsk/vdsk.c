@@ -64,6 +64,26 @@ vdsk_deref(vdskctx ctx)
 	return (vdsk - 1);
 }
 
+static struct vdsk *
+vdsk_realloc(struct vdsk *vdsk, size_t size)
+{
+	struct vdsk *new_vdsk;
+	size_t offset;
+
+	if (vdsk->fmt->struct_size == 0)
+		return vdsk;
+
+	new_vdsk = malloc(size + vdsk->fmt->struct_size);
+
+	memcpy((char *) new_vdsk + vdsk->fmt->struct_size, vdsk, size);
+
+	offset = vdsk->fmt->struct_size / 8;
+
+	free(vdsk);
+
+	return (struct vdsk*) ((double *)new_vdsk + offset);
+}
+
 static struct vdsk_format *
 vdsk_probe(struct vdsk *vdsk)
 {
@@ -200,6 +220,8 @@ vdsk_open(const char *path, int flags, size_t size)
 		vdsk->fmt = vdsk_probe(vdsk);
 		if (vdsk->fmt == NULL)
 			break;
+
+		vdsk = vdsk_realloc(vdsk, size);
 
 		lck = (vdsk->fflags & FWRITE) ? LOCK_EX : LOCK_SH;
 		if (flock(vdsk->fd, lck | LOCK_NB) == -1)

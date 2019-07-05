@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD: user/marcel/libvdsk/libvdsk/qcow.c 286996 2015-08-21 15:20:0
 #include <string.h>
 
 #include "vdsk_int.h"
+#include "qcow.h"
 
 /* Flag bits in cluster offsets */
 #define	QCOW_CLSTR_COMPRESSED	(1ULL << 62)
@@ -60,6 +61,12 @@ static void
 copy_cluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t dst, off_t src);
 static void
 inc_refs(struct vdsk *vdsk, off_t off, int newcluster);
+
+static struct qcdsk*
+qcow_deref(struct vdsk *vdsk)
+{
+	return (struct qcdsk*) vdsk - 1;
+}
 
 static int
 qcow_probe(struct vdsk *vdsk)
@@ -102,7 +109,7 @@ qcow_open(struct vdsk *vdsk)
 {
 
 	struct qcheader *header;
-	struct qcdsk *qc = &vdsk->aux_data.qcow;
+	struct qcdsk *qc = qcow_deref(vdsk);
 	struct stat st;
 	size_t i;
 	char basepath[MAXPATHLEN];
@@ -180,7 +187,7 @@ qcow_open(struct vdsk *vdsk)
 			goto err_l1_out;
 		}
 
-		if (qc->base->aux_data.qcow.clustersz != qc->clustersz) {
+		if (qcow_deref(qc->base)->clustersz != qc->clustersz) {
 			printf("all disks must share clustersize\n");
 			goto err_base_out;
 		}
@@ -235,7 +242,7 @@ qcow_close(struct vdsk *vdsk)
 
 	struct qcdsk *disk;
 
-	disk = &vdsk->aux_data.qcow;
+	disk = qcow_deref(vdsk);
 
 	if (disk->base)
 		qcow_close(disk->base);
@@ -260,7 +267,7 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 	iov_rem = 0;
 	read = 0;
 	ioc = 0;
-	disk = &vdsk->aux_data.qcow;
+	disk = qcow_deref(vdsk);
 	rem = 0;
 
 	pthread_rwlock_rdlock(&disk->lock);
@@ -288,7 +295,7 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 		return -1;
 	}
 	while (rem > 0) {
-		for (d = vdsk; d; d = d->aux_data.qcow.base) {
+		for (d = vdsk; d; d = qcow_deref(d)->base) {
 			if ((phys_off = xlate(d, offset, NULL)) > 0) {
 				break;
 			}
@@ -377,7 +384,7 @@ xlate(struct vdsk *vdsk, off_t off, int *inplace)
 	struct qcdsk *disk;
 	int read;
 
-	disk = &vdsk->aux_data.qcow;
+	disk = qcow_deref(vdsk);
 
 	if (inplace)
 		*inplace = 0;
@@ -438,7 +445,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 	iov_rem = 0;
 	wrote = 0;
 	ioc = 0;
-	disk = &vdsk->aux_data.qcow;
+	disk = qcow_deref(vdsk);
 	rem = 0;
 	inplace = 1;
 	pthread_rwlock_wrlock(&disk->lock);
@@ -481,7 +488,7 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		}
 
 		if (phys_off == 0) {
-			for (d = disk->base; d; d = d->aux_data.qcow.base)
+			for (d = disk->base; d; d = qcow_deref(d)->base)
 				if ((phys_off = xlate(d, offset, NULL)) > 0)
 					break;
 		}
@@ -546,8 +553,8 @@ mkcluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t off, off_t src_phys)
 	int fd;
 	struct qcdsk *disk, *base;
 
-	disk = &vdsk->aux_data.qcow;
-	base = &vdsk_base->aux_data.qcow;
+	disk = qcow_deref(vdsk);
+	base = qcow_deref(vdsk_base);
 
 	cluster = -1;
 	fd = vdsk->fd;
@@ -646,8 +653,8 @@ copy_cluster(struct vdsk *vdsk, struct vdsk *vdsk_base, off_t dst, off_t src)
 
 	ret = 0;
 
-	disk = &vdsk->aux_data.qcow;
-	base = &vdsk_base->aux_data.qcow;
+	disk = qcow_deref(vdsk);
+	base = qcow_deref(vdsk_base);
 
 	scratch = alloca(disk->clustersz);
 	if (!scratch) {
@@ -682,7 +689,7 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 	uint64_t buf;
 	struct qcdsk *disk;
 
-	disk = &vdsk->aux_data.qcow;
+	disk = qcow_deref(vdsk);
 
 	off &= ~QCOW2_INPLACE;
 	nper = disk->clustersz / 2;
@@ -748,7 +755,7 @@ static int
 qcow_flush(struct vdsk *vdsk)
 {
 	int error;
-	struct qcdsk *disk = &vdsk->aux_data.qcow;
+	struct qcdsk *disk = qcow_deref(vdsk);
 
 	error = 0;
 	if (vdsk_is_dev(vdsk)) {
@@ -770,6 +777,7 @@ static struct vdsk_format qcow_format = {
 	.name = "qcow",
 	.description = "QEMU Copy-On-Write, version 1",
 	.flags = VDSKFMT_CAN_WRITE | VDSKFMT_HAS_HEADER,
+	.struct_size = sizeof(struct qcdsk),
 	.probe = qcow_probe,
 	.open = qcow_open,
 	.close = qcow_close,

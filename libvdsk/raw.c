@@ -263,6 +263,7 @@ static struct vdsk_format raw_format = {
 	.name = "raw",
 	.description = "Raw Disk File or Device",
 	.flags = VDSKFMT_CAN_WRITE | VDSKFMT_DEVICE_OK | VDSKFMT_NO_METADATA,
+	.struct_size = 0,
 	.probe = raw_probe,
 	.open = raw_open,
 	.close = raw_close,
