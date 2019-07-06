@@ -30,10 +30,12 @@
 #define	__VDSK_INT_H__
 
 #include <sys/linker_set.h>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <vdsk.h>
+#ifdef SMP
+#include <pthread.h>
+#endif
 
 struct vdsk;
 

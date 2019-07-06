@@ -13,6 +13,6 @@ SRCS+=	\
 	vhd.c \
 	vmdk.c
 
-DEBUG_FLAGS=-O0 -gdwarf-2
+DEBUG_FLAGS=-O0 -gdwarf-2 -DSMP
 
 .include <bsd.lib.mk>

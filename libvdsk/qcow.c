@@ -117,7 +117,9 @@ qcow_open(struct vdsk *vdsk)
 	uint32_t backingsz;
 	int ret = 0;
 
+#ifdef SMP
 	pthread_rwlock_init(&qc->lock, NULL);
+#endif
 
 	header = &qc->header;
 	qc->vdsk = vdsk;
@@ -270,7 +272,9 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 	disk = qcow_deref(vdsk);
 	rem = 0;
 
+#ifdef SMP
 	pthread_rwlock_rdlock(&disk->lock);
+#endif
 
 	DPRINTF("TRYING TO %s\r\n", __func__);
 	DPRINTF("iov->iov_len: %lu\n\r", iov->iov_len);
@@ -291,7 +295,11 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 
 	if (offset < 0) {
 		printf("Exit with off < 0; off = %ld\n\r", offset);
+
+#ifdef SMP
 		pthread_rwlock_unlock(&disk->lock);
+#endif
+
 		return -1;
 	}
 	while (rem > 0) {
@@ -355,7 +363,11 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 				if (read == -1) {
 					printf("%s: (%d) %s\r\n", __func__,
 						errno, strerror(errno));
+
+#ifdef SMP
 					pthread_rwlock_unlock(&disk->lock);
+#endif
+
 					return (-1);
 				}
 
@@ -372,7 +384,11 @@ qcow_readv(struct vdsk *vdsk, const struct iovec *iov,
 		rem -= sz;
 	}
 	DPRINTF("%s: finished rem: %lx\r\n", __func__, rem);
+
+#ifdef SMP
 	pthread_rwlock_unlock(&disk->lock);
+#endif
+
 	return rem;
 }
 
@@ -448,7 +464,10 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 	disk = qcow_deref(vdsk);
 	rem = 0;
 	inplace = 1;
+
+#ifdef SMP
 	pthread_rwlock_wrlock(&disk->lock);
+#endif
 
 	DPRINTF("TRYING TO %s\r\n", __func__);
 	DPRINTF("iov->iov_len: %lu\n\r", iov->iov_len);
@@ -469,7 +488,11 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 
 	if (offset < 0) {
 		printf("Exit with off < 0; off = %lx\n\r", offset);
+
+#ifdef SMP
 		pthread_rwlock_unlock(&disk->lock);
+#endif
+
 		return -1;
 	}
 	while (rem > 0) {
@@ -483,7 +506,11 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		DPRINTF("%s: phys_off %lx\r\n",__func__, phys_off);
 		if (phys_off == -1) {
 			printf("Exit with phys_off == -1\n\r");
+
+#ifdef SMP
 			pthread_rwlock_unlock(&disk->lock);
+#endif
+
 			return -1;
 		}
 
@@ -496,12 +523,20 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 			phys_off = mkcluster(vdsk, d, offset, phys_off);
 		if (phys_off == -1) {
 			printf("Exit after mk_cluster phys_off == -1\n\r");
+
+#ifdef SMP
 			pthread_rwlock_unlock(&disk->lock);
+#endif
+
 			return -1;
 		}
 		if (phys_off < disk->clustersz) {
 			printf("%s: writing reserved cluster\r\n", __func__);
+
+#ifdef SMP
 			pthread_rwlock_unlock(&disk->lock);
+#endif
+
 			return (EFAULT);
 		}
 
@@ -525,7 +560,11 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 				iov_rem);
 
 			if (wrote == -1) {
+
+#ifdef SMP
 				pthread_rwlock_unlock(&disk->lock);
+#endif
+
 				return (-1);
 			}
 
@@ -541,7 +580,11 @@ qcow_writev(struct vdsk *vdsk, const struct iovec *iov,
 		rem -= sz;
 	}
 	DPRINTF("%s: finished rem: %lx\r\n", __func__, rem);
+
+#ifdef SMP
 	pthread_rwlock_unlock(&disk->lock);
+#endif
+
 	return rem;
 }
 
