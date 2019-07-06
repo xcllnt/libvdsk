@@ -781,7 +781,7 @@ inc_refs(struct vdsk *vdsk, off_t off, int newcluster)
 }
 
 static int
-qcow_trim(struct vdsk *vdsk, off_t offset, size_t length)
+qcow_trim(struct vdsk __unused *vdsk, off_t __unused offset, size_t __unused length)
 {
 	int error;
 
