@@ -309,7 +309,8 @@ pci_vtscsi_reset(void *vsc)
 	/* initialize config structure */
 	sc->vss_config = (struct pci_vtscsi_config){
 		.num_queues = VTSCSI_REQUESTQ,
-		.seg_max = VTSCSI_MAXSEG,
+		/* Leave room for the request and the response. */
+		.seg_max = VTSCSI_MAXSEG - 2,
 		.max_sectors = 2,
 		.cmd_per_lun = 1,
 		.event_info_size = sizeof(struct pci_vtscsi_event),
@@ -581,7 +582,7 @@ static void
 pci_vtscsi_eventq_notify(void *vsc, struct vqueue_info *vq)
 {
 
-	vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
+	vq_kick_disable(vq);
 }
 
 static void
@@ -634,7 +635,7 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
     struct pci_vtscsi_queue *queue, int num)
 {
 	struct pci_vtscsi_worker *worker;
-	char threadname[16];
+	char tname[MAXCOMLEN + 1];
 	int i;
 
 	queue->vsq_sc = sc;
@@ -653,8 +654,8 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 		pthread_create(&worker->vsw_thread, NULL, &pci_vtscsi_proc,
 		    (void *)worker);
 
-		sprintf(threadname, "virtio-scsi:%d-%d", num, i);
-		pthread_set_name_np(worker->vsw_thread, threadname);
+		snprintf(tname, sizeof(tname), "vtscsi:%d-%d", num, i);
+		pthread_set_name_np(worker->vsw_thread, tname);
 		LIST_INSERT_HEAD(&queue->vsq_workers, worker, vsw_link);
 	}
 

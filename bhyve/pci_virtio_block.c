@@ -55,7 +55,9 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_block.c 340707 2018-11-20 22:
 #include "virtio.h"
 #include "block_if.h"
 
-#define VTBLK_RINGSZ	64
+#define VTBLK_RINGSZ	128
+
+_Static_assert(VTBLK_RINGSZ <= BLOCKIF_RING_MAX, "Each ring entry must be able to queue a request");
 
 #define VTBLK_S_OK	0
 #define VTBLK_S_IOERR	1
@@ -351,7 +353,15 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/* setup virtio block config space */
 	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
-	sc->vbsc_cfg.vbc_seg_max = BLOCKIF_IOV_MAX;
+
+	/*
+	 * If Linux is presented with a seg_max greater than the virtio queue
+	 * size, it can stumble into situations where it violates its own
+	 * invariants and panics.  For safety, we keep seg_max clamped, paying
+	 * heed to the two extra descriptors needed for the header and status
+	 * of a request.
+	 */
+	sc->vbsc_cfg.vbc_seg_max = MIN(VTBLK_RINGSZ - 2, BLOCKIF_IOV_MAX);
 	sc->vbsc_cfg.vbc_geometry.cylinders = 0;	/* no geometry */
 	sc->vbsc_cfg.vbc_geometry.heads = 0;
 	sc->vbsc_cfg.vbc_geometry.sectors = 0;
