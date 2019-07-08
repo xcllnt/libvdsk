@@ -237,6 +237,9 @@ vdsk_open(const char *path, int flags, size_t size)
 		ctx = vdsk + 1;
 	} while (0);
 
+	if (errno == ENOSYS)
+		ERRPRINTF("%s: Open not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
 	if (ctx == NULL) {
 		if (vdsk != NULL) {
 			if (vdsk->fd != -1)
@@ -265,12 +268,16 @@ int
 vdsk_close(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	int err;
 
 	if (vdsk->options & VDSK_TRACE)
 		vdsk_trace_enter(__func__, 1,
 		    "vdsk", "%p", vdsk);
 
-	vdsk->fmt->close(vdsk);
+	err = vdsk->fmt->close(vdsk);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Close not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
 	flock(vdsk->fd, LOCK_UN);
 	close(vdsk->fd);
 
@@ -337,8 +344,13 @@ ssize_t
 vdsk_readv(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	ssize_t err;
 
-	return (vdsk->fmt->readv(vdsk, iov, iovcnt, offset));
+	err = vdsk->fmt->readv(vdsk, iov, iovcnt, offset);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Readv not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
 
 ssize_t
@@ -346,20 +358,33 @@ vdsk_read(vdskctx ctx, void *buffer, size_t nbytes, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 	struct iovec iov;
+	ssize_t err;
 
 	iov.iov_base = buffer;
 	iov.iov_len = nbytes;
-	return (vdsk->fmt->readv(vdsk, &iov, 1, offset));
+
+
+	err = vdsk->fmt->readv(vdsk, &iov, 1, offset);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Read not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
 
 ssize_t
 vdsk_writev(vdskctx ctx, const struct iovec *iov, int iovcnt, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	ssize_t err;
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->writev(vdsk, iov, iovcnt, offset));
+
+	err = vdsk->fmt->writev(vdsk, iov, iovcnt, offset);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Writev not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
 
 ssize_t
@@ -367,30 +392,48 @@ vdsk_write(vdskctx ctx, const void *buffer, size_t nbytes, off_t offset)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
 	struct iovec iov;
+	ssize_t err;
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
 	iov.iov_base = __DECONST(void *, buffer);
 	iov.iov_len = nbytes;
-	return (vdsk->fmt->writev(vdsk, &iov, 1, offset));
+
+	err = vdsk->fmt->writev(vdsk, &iov, 1, offset);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Write not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
 
 int
 vdsk_trim(vdskctx ctx, off_t offset, size_t length)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	int err;
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (EROFS);
-	return (vdsk->fmt->trim(vdsk, offset, length));
+
+	err = vdsk->fmt->trim(vdsk, offset, length);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Trim not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
 
 int
 vdsk_flush(vdskctx ctx)
 {
 	struct vdsk *vdsk = vdsk_deref(ctx);
+	int err;
 
 	if ((vdsk->fflags & FWRITE) == 0)
 		return (0);
-	return (vdsk->fmt->flush(vdsk));
+
+	err = vdsk->fmt->flush(vdsk);
+	if (err == ENOSYS)
+		ERRPRINTF("%s: Flush not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
+	return (err);
 }
