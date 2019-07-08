@@ -1,0 +1,59 @@
+.Dd 08 July 2019
+.Dt LIBVDSK 8
+.Sh NAME
+libvdsk \- library for working with various virtual disk formats
+.Sh SYNOPSIS
+.In vdsk.h
+.Ft vdskctx
+.Fn vdsk_open "const char *path" "int flags" "size_t size"
+.Ft int
+.Fn vdsk_close "vdskctx ctx"
+.Ft ssize_t
+.Fn vdsk_read "vdskctx ctx" "void *buf" "size_t nbytes" "off_t offset"
+.Ft ssize_t
+.Fn vdsk_readv "vdskctx ctx" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Ft ssize_t
+.Fn vdsk_write "vdskctx ctx" "void *buf" "size_t nbytes" "off_t offset"
+.Ft ssize_t
+.Fn vdsk_writev "vdskctx ctx" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Ft int
+.Fn vdsk_trim "vdskctx ctx" "off_t offset" "size_t length"
+.Ft int
+.Fn vdsk_flash "vdskctx ctx"
+.Sh DESCRIPTION
+.Pp
+libvdsk works by offering an API that can be used by any program that can link
+with it. It implements file operations for different types of image files. This
+will make it so that depending on the type of file the virtual machine uses as a
+disk file, libvdsk will run different file operations in the backend, depending
+on the type.
+.Pp
+For each block I/O operation libvdsk implements a function that will be called
+in the block I/O interface. These functions cover common file operations like
+open, close, read, write, trim and flush. All of these in turn use a
+callback to fulfill the operation received. Each file format, be it a raw disk
+file or qcow2, has specific functions implemented for all the previously
+mentioned operations.
+.Pp
+The
+.Fn vdsk_read
+.Fn vdsk_readv ,
+.Fn vdsk_write ,
+.Fn vdsk_writev
+function serve the same purpose as the
+.Fn pread
+.Fn preadv ,
+.Fn pwrite ,
+.Fn pwritev
+system calls, and they have the same return values.
+.Pp
+.Fn vdsk_flush
+synchronizes the disk's internal state with that on the disk
+.Pp
+.Fn vdsk_trim
+trims the disk if it has a physical representation
+.Pp
+At the moment libvdsk only supports RAW and QCOW2 disk formats
+.Pp
+.Sh AUTHOR
+.An Marcel Molenaar Aq Mt marcel@freebsd.org
