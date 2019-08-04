@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 2019 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2019
+.Dt LIBVDSK 3
+.Os
+.Sh NAME
+.Nm libvdsk
+.Nd library for working with disks and virtual disk images
+.Sh DESCRIPTION
+The
+.Nm libvdsk
+library allows programs that link against it and that use the application
+programming interface provided by it to work with virtual disk images in
+the same manner as they would with actual disks and disk partitions.
+To avoid the need for different interfaces between actual disks or disk
+partitions on the one hand and virtual disk images on the other hand, the
+.Nm libvdsk
+library supports both with the same interface.
+.Pp
+The
+.Nm libvdsk
+library uses heuristics to determine the kind of disk it is going to work
+on so that the program that links against it does not need to provide
+additional information.
+As such, the program does not typically need to be modified beyond using
+the
+.Nm libvdsk
+library to extend its functionality.
+.Sh APPLICATION PROGRAMMING INTERFACE
+The
+.Nm libvdsk
+library defines an opaque data type, called
+.Vt vdskctx ,
+to represent a disk.
+This is called a context and it is returned to the program when it calls the
+.Fn vdsk_open
+function.
+The context remains valid until the
+.Fn vdsk_close
+function is called with it.
+These two interface functions together define the life span of the context
+and by proxy the internal state kept about the disk, disk partition or
+virtual disk image.
+.Pp
+If the disk is opened for reading only, the
+.Nm libvdsk
+library holds a shared lock on the disk to allow concurrent read-only
+access by the same or a different program.
+If the disk is opened for reading and writing, the
+.Nm libvdsk 
+library will try to lock the disk exclusively and prevent the same or a
+different program from opening the same disk.
+.Pp
+The primary operations on a disk are reads and writes of disk blocks,
+also known as sectors.
+The
+.Fn vdsk_read
+and
+.Fn vdsk_readv
+function are used for reading disk blocks.
+The
+.Fn vdsk_write
+and
+.Fn vdsk_writev
+functions are used for writing disk blocks.
+A program should use
+.Fn vdsk_flush
+anytime it needs to be assured that modifications aren't lost due to
+unexpected events, like power failure or application crashes.
+The
+.Fn vdsk_trim
+function is used to inform the
+.Nm libvdsk
+library that a block or sequence of blocks does not contain any
+data anymore.
+This allows the
+.Nm libvdsk
+library to shrink the virtual disk image or propagate the infomation
+to the disk hardware.
+.Pp
+Besides these primary interface functions, the
+.Nm libvdsk
+library also provides a handful of administrative functions that
+generally help programs intergration.
+.Sh ENVIRONMENT
+The
+.Nm libvdsk
+library checks for the presence of the
+.Ev LIBVDSK_TRACE
+environment variable and if present, will log tracing information
+using
+.Xr syslog 8 .
+.Sh DIAGNOSTICS
+Since not all virtual disk image formats are implemented, the
+.Nm libvdsk
+library prints a message to the standard error stream of the program
+if the virtual disk image is known, but not yet supported by the
+library.
+This helps users of the program to understand failures.
+For virtual disk image formats that the
+.Nm libvdsk
+library does not know, the behaviour is typically that the image is
+treated as a raw disk.
+.Sh SEE ALSO
+.Xr vdsk_close 3 ,
+.Xr vdsk_does_trim 3 ,
+.Xr vdsk_fd 3 ,
+.Xr vdsk_flush 3 ,
+.Xr vdsk_media_size 3 ,
+.Xr vdsk_open 3 ,
+.Xr vdsk_read 3 ,
+.Xr vdsk_readv 3 ,
+.Xr vdsk_sector_size 3 ,
+.Xr vdsk_stripe_offset 3 ,
+.Xr vdsk_stripe_size 3 ,
+.Xr vdsk_trim 3 ,
+.Xr vdsk_write 3 ,
+.Xr vdsk_writev 3

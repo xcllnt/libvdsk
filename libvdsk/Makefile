@@ -15,4 +15,21 @@ SRCS+=	\
 
 DEBUG_FLAGS=-O0 -gdwarf-2 -DSMP
 
+MAN=	\
+	libvdsk.3 \
+	vdsk_close.3 \
+	vdsk_does_trim.3 \
+	vdsk_fd.3 \
+	vdsk_flush.3 \
+	vdsk_media_size.3 \
+	vdsk_open.3 \
+	vdsk_read.3 \
+	vdsk_readv.3 \
+	vdsk_sector_size.3 \
+	vdsk_stripe_offset.3 \
+	vdsk_stripe_size.3 \
+	vdsk_trim.3 \
+	vdsk_write.3 \
+	vdsk_writev.3
+
 .include <bsd.lib.mk>
