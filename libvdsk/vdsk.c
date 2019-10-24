@@ -237,6 +237,9 @@ vdsk_open(const char *path, int flags, size_t size)
 		ctx = vdsk + 1;
 	} while (0);
 
+	if (errno == ENOSYS)
+		ERRPRINTF("%s: Open not implemented for %s format\n\r", __func__, vdsk->fmt->name);
+
 	if (ctx == NULL) {
 		if (vdsk != NULL) {
 			if (vdsk->fd != -1)

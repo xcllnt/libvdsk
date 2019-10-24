@@ -123,4 +123,6 @@ vdsk_trace_leave(const char *func, int count, const char *arg1,
 #define DPRINTF(format, arg...)
 #endif
 
+#define ERRPRINTF(format, arg...) dprintf(STDERR_FILENO, format, ##arg)
+
 #endif /* __VDSK_INT_H__ */
