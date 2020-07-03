@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm vdsk_sector_size
-.Nd return the size on bytes of a disk block or sector
+.Nd return the size in bytes of a disk block or sector
 .Sh LIBRARY
 .Lb libvdsk
 .Sh SYNOPSIS
@@ -37,6 +37,9 @@
 .Ft int
 .Fn vdsk_sector_size "vdskctx vdsk"
 .Sh DESCRIPTION
+The
+.Nm vdsk_sector_size
+function returns the number of bytes in a disk block, aka sector.
 .Sh SEE ALSO
 .Xr libvdsk 3 ,
 .Xr vdsk_media_size 3 ,
