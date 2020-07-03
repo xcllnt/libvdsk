@@ -41,13 +41,14 @@ The
 .Nm vdsk_open
 function opens the device or file given by
 .Va path
-and accordxing to
+and according to the
 .Va flags
-and constructs a context to represent the disk.
+argument and constructs a context to represent the disk.
 The context contains
 .Va size
-bytes at the beginning for use by the program.
-Programs can cast the
+bytes of free space at the beginning of it that can be used by the program
+for keeping per-context state.
+To that end, programs can cast the
 .Vt vdskctx
 data type to a pointer that can be dereferenced.
 .Sh SEE ALSO
